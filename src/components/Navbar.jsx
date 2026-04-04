@@ -1,3 +1,8 @@
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import logo from "../assets/logo.png"
+
+
 function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -6,7 +11,10 @@ function Navbar() {
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <img src={logo} alt="Logo" className="h-12 md:h-16 w-auto" />
+          <Link to="/" className="flex items-center gap-2">
+            <img src={logo} alt="Widyadinamika Logo" className="h-20 w-auto" />
+            <span className="text-3xl font-bold text-gray-900 font-poppins">Widyadinamika</span>
+          </Link>
 
           {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-8 text-lg font-semibold">
@@ -16,17 +24,29 @@ function Navbar() {
               >
                 Home
               </Link>
-              <a 
-                href="#about" 
+              <Link
+                to="/learn" 
                 className="text-gray-700 hover:text-sky-500 transition-colors duration-200 py-2"
               >
-                About
-              </a>
+                Learn
+              </Link>
               <Link 
-                to="/emailform" 
+                to="/plan" 
                 className="text-gray-700 hover:text-sky-500 transition-colors duration-200 py-2"
               >
-                Contact
+                Plan
+              </Link>
+              <Link 
+                to="/notes" 
+                className="text-gray-700 hover:text-sky-500 transition-colors duration-200 py-2"
+              >
+                Notes
+              </Link>
+              <Link 
+                to="/timer" 
+                className="text-gray-700 hover:text-sky-500 transition-colors duration-200 py-2"
+              >
+                Focus
               </Link>
             </nav>
 
@@ -57,14 +77,14 @@ function Navbar() {
               className="text-gray-700 hover:text-sky-500 font-semibold transition-colors duration-200 py-2"
               onClick={() => setIsMenuOpen(false)}
             >
-              About
+              Learn
             </a>
             <Link 
-              to="/emailform" 
+              to="/plan" 
               className="text-gray-700 hover:text-sky-500 font-semibold transition-colors duration-200 py-2"
               onClick={() => setIsMenuOpen(false)}
             >
-              Contact
+              Plan
             </Link>
           </nav>
         </div>
