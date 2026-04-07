@@ -1,5 +1,6 @@
 // src/pages/Products.jsx
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const categories = ["All", "Makanan", "Minuman", "Alat Tulis", "Seragam", "Lainnya"];
 
@@ -15,10 +16,14 @@ const products = [
 ];
 
 function ProductCard({ product }) {
+  const navigate = useNavigate(); // ✅ inside the component
   const isOutOfStock = product.stock === 0;
 
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col transition-shadow duration-200 hover:shadow-md ${isOutOfStock ? "opacity-60" : ""}`}>
+    <div
+      onClick={() => navigate(`/products/${product.id}`)}
+      className={`cursor-pointer bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col transition-shadow duration-200 hover:shadow-md ${isOutOfStock ? "opacity-60" : ""}`} // ✅ no literal "..."
+    >
       {/* Image */}
       <div className="relative">
         <img
@@ -38,11 +43,9 @@ function ProductCard({ product }) {
       {/* Info */}
       <div className="p-4 flex flex-col gap-2 flex-1">
         <h3 className="font-semibold text-gray-900 text-base">{product.name}</h3>
-
         <p className="text-violet-600 font-bold text-lg">
           Rp {product.price.toLocaleString("id-ID")}
         </p>
-
         <p className={`text-xs font-medium ${isOutOfStock ? "text-red-400" : "text-green-500"}`}>
           {isOutOfStock ? "Stok habis" : `Stok: ${product.stock}`}
         </p>
