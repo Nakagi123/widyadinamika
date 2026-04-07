@@ -1,6 +1,4 @@
 import { Link } from "react-router-dom";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer"
 import heroIllustration from "../assets/hero-image.png";
 
 const HeroImage = () => (
@@ -18,7 +16,6 @@ const tags = ["Terpercaya", "Harga Bersahabat", "Produk Lengkap", "Mudah Dijangk
 function Home() {
   return (
     <div className="min-h-screen bg-white font-sans antialiased">
-      <Navbar />
 
       {/* Hero Section */}
       <main className="px-6 md:px-12 lg:px-20">
@@ -75,7 +72,6 @@ function Home() {
           animation: fade-in 0.6s ease-out both;
         }
       `}</style>
-    <Footer />
     </div>
   );
 }
