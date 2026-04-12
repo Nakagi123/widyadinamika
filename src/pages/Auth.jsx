@@ -1,4 +1,3 @@
-// src/pages/Auth.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ShoppingBag } from "lucide-react";
@@ -23,10 +22,11 @@ function Auth() {
     };
     
     const handleLoginSubmit = () => {
+        console.log("logging in with role:", "admin");
         login({
         name: "Elian",
         email: loginForm.email,
-        role: "student"
+        role: "admin"
         });
         navigate("/");
     };

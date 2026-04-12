@@ -9,6 +9,8 @@ import Products from "./pages/Products.jsx"
 import Cart from "./pages/Cart.jsx"
 import ProductDetail from './pages/ProductDetail.jsx'
 import Auth from './pages/Auth.jsx'
+import UserDashboard from "./pages/UserDashboard.jsx";
+import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -20,6 +22,8 @@ createRoot(document.getElementById('root')).render(
             <Route path="/products" element={<Products />} />
             <Route path="products/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/user" element={<UserDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Route>
 
           <Route path="/auth" element={<Auth />} />
