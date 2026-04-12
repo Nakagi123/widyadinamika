@@ -1,10 +1,18 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { Menu, X, ShoppingCart, CircleUserRound } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Menu, X, ShoppingCart, CircleUserRound, LogOut } from "lucide-react";
 import logo from "../assets/logo.png";
+import { useAuth } from "../context/AuthContext";
 
 function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, isLoggedIn, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/auth");
+  };
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
@@ -29,13 +37,33 @@ function Navbar() {
               <ShoppingCart className="w-5 h-5" />
               Cart
             </Link>
-            <Link to="/user" className="flex items-center gap-1 text-gray-700 hover:text-violet-500 transition-colors duration-200 py-2">
-              <CircleUserRound className="w-5 h-5" />
-              User
-            </Link>
+
+            {/* Auth section */}
+            {isLoggedIn ? (
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1 text-gray-700 text-sm">
+                  <CircleUserRound className="w-5 h-5 text-violet-500" />
+                  {user.name}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/auth"
+                className="flex items-center gap-1 text-gray-700 hover:text-violet-500 transition-colors duration-200 py-2"
+              >
+                <CircleUserRound className="w-5 h-5" />
+                Masuk
+              </Link>
+            )}
           </nav>
 
-        
+          {/* Mobile Menu Button */}
           <button
             className="md:hidden p-2 text-gray-700"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -57,10 +85,28 @@ function Navbar() {
               <ShoppingCart className="w-5 h-5" />
               Cart
             </Link>
-            <Link to="/user" className="flex items-center gap-1 text-gray-700 hover:text-violet-500 font-semibold transition-colors duration-200 py-2" onClick={() => setIsMenuOpen(false)}>
-              <CircleUserRound className="w-5 h-5" />
-              User
-            </Link>
+
+            {/* Mobile Auth section */}
+            {isLoggedIn ? (
+              <>
+                <span className="flex items-center gap-1 text-gray-700 font-semibold py-2">
+                  <CircleUserRound className="w-5 h-5 text-violet-500" />
+                  {user.name}
+                </span>
+                <button
+                  onClick={() => { handleLogout(); setIsMenuOpen(false); }}
+                  className="flex items-center gap-1 text-red-400 hover:text-red-500 font-semibold transition-colors duration-200 py-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Keluar
+                </button>
+              </>
+            ) : (
+              <Link to="/auth" className="flex items-center gap-1 text-gray-700 hover:text-violet-500 font-semibold transition-colors duration-200 py-2" onClick={() => setIsMenuOpen(false)}>
+                <CircleUserRound className="w-5 h-5" />
+                Masuk
+              </Link>
+            )}
           </nav>
         </div>
 

@@ -1,8 +1,8 @@
-// src/pages/Cart.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-// Placeholder cart items — will come from backend/context later
 const initialCart = [
   { id: 1, name: "Nasi Goreng", price: 10000, quantity: 2, image: "https://placehold.co/100x100?text=Nasi+Goreng" },
   { id: 2, name: "Es Teh Manis", price: 5000, quantity: 1, image: "https://placehold.co/100x100?text=Es+Teh" },
@@ -63,7 +63,17 @@ function CartItem({ item, onIncrease, onDecrease, onRemove }) {
 }
 
 function Cart() {
+  const { isLoggedIn } = useAuth();
+  const navigate = useNavigate();
   const [cartItems, setCartItems] = useState(initialCart);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate("/auth");
+    }
+  }, [isLoggedIn, navigate]);
+
+  if (!isLoggedIn) return null;
 
   const handleIncrease = (id) => {
     setCartItems((prev) =>
