@@ -1,27 +1,24 @@
 import { useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { CheckCircle, ShoppingBag, Home } from "lucide-react";
-
-const dummyOrder = {
-  id: "ORD-1744567890",
-  total: 25000,
-  items: [
-    { id: 1, name: "Nasi Goreng", quantity: 2, price: 10000, image: "https://placehold.co/100x100?text=Nasi+Goreng" },
-    { id: 2, name: "Es Teh Manis", quantity: 1, price: 5000, image: "https://placehold.co/100x100?text=Es+Teh" },
-    { id: 3, name: "Pensil 2B", quantity: 3, price: 3000, image: "https://placehold.co/100x100?text=Pensil" },
-  ],
-};
+import { CheckCircle, ShoppingBag, Home, Wallet, QrCode } from "lucide-react";
 
 function OrderSuccess() {
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Read data passed from Checkout via navigate state
+  const order = location.state;
 
   useEffect(() => {
     if (!isLoggedIn) navigate("/auth");
-  }, [isLoggedIn, navigate]);
+    if (!order) navigate("/"); // if someone visits directly without order data
+  }, [isLoggedIn, order, navigate]);
 
-  if (!isLoggedIn) return null;
+  if (!isLoggedIn || !order) return null;
+
+  const isCash = order.paymentMethod === "cash";
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -29,25 +26,51 @@ function OrderSuccess() {
 
         {/* Success Icon */}
         <div className="flex flex-col items-center gap-3 py-6">
-          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-            <CheckCircle className="w-10 h-10 text-green-500" />
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center ${isCash ? "bg-yellow-100" : "bg-green-100"}`}>
+            {isCash
+              ? <Wallet className="w-10 h-10 text-yellow-500" />
+              : <CheckCircle className="w-10 h-10 text-green-500" />
+            }
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Pembayaran Berhasil!</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isCash ? "Pesanan Dibuat!" : "Pembayaran Berhasil!"}
+          </h1>
           <p className="text-sm text-gray-400 text-center">
-            Pesananmu sudah dikonfirmasi. Silakan ambil pesananmu di koperasi sekolah.
+            {isCash
+              ? "Tunjukkan ID pesanan di bawah kepada kasir saat membayar di koperasi sekolah."
+              : "Pesananmu sudah dikonfirmasi. Silakan ambil pesananmu di koperasi sekolah."
+            }
           </p>
         </div>
 
+        {/* Cash Notice */}
+        {isCash && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex flex-col gap-1">
+            <p className="text-sm font-semibold text-yellow-700">⚠️ Belum Lunas</p>
+            <p className="text-xs text-yellow-600">
+              Pesananmu masih menunggu konfirmasi pembayaran dari kasir. Segera bayar di koperasi agar pesanan diproses.
+            </p>
+          </div>
+        )}
+
         {/* Order Info */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-400">Order ID</p>
-            <p className="text-sm font-bold text-gray-900">{dummyOrder.id}</p>
+            <p className="text-sm font-bold text-gray-900">{order.orderId}</p>
           </div>
           <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-400">Total Dibayar</p>
+            <p className="text-sm text-gray-400">Metode Pembayaran</p>
+            <p className="text-sm font-semibold text-gray-700">
+              {order.paymentMethod === "cash" && "Bayar di Tempat"}
+              {order.paymentMethod === "qris" && "QRIS"}
+              {order.paymentMethod === "virtual_account" && "Transfer Bank"}
+            </p>
+          </div>
+          <div className="flex justify-between items-center border-t border-gray-100 pt-3">
+            <p className="text-sm text-gray-400">Total</p>
             <p className="text-sm font-bold text-violet-600">
-              Rp {dummyOrder.total.toLocaleString("id-ID")}
+              Rp {order.total.toLocaleString("id-ID")}
             </p>
           </div>
         </div>
@@ -60,7 +83,7 @@ function OrderSuccess() {
           </div>
 
           <div className="flex flex-col gap-3">
-            {dummyOrder.items.map((item) => (
+            {order.items.map((item) => (
               <div key={item.id} className="flex items-center gap-3">
                 <img
                   src={item.image}

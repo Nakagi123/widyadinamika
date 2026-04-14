@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ShoppingBag, MapPin, CreditCard, ChevronRight } from "lucide-react";
+import { ShoppingBag, CreditCard, ChevronRight, Wallet } from "lucide-react";
 
 // Dummy cart items — replace with real cart data later
 const dummyCartItems = [
@@ -12,60 +12,77 @@ const dummyCartItems = [
 ];
 
 const paymentMethods = [
+  { id: "cash", label: "Bayar di Tempat", description: "Bayar langsung dengan cash di koperasi sekolah" },
   { id: "qris", label: "QRIS", description: "GoPay, OVO, Dana, ShopeePay, dll" },
-  { id: "bank_transfer", label: "Transfer Bank", description: "BCA, BNI, BRI, Mandiri" },
-  { id: "gopay", label: "GoPay", description: "Bayar langsung dengan GoPay" },
-];
-
-const pickupLocations = [
-  { id: "koperasi", label: "Koperasi Sekolah", description: "Gedung A, Lantai 1" },
-  { id: "kantin", label: "Kantin", description: "Gedung B, Lantai 1" },
+  { id: "virtual_account", label: "Transfer Bank", description: "BCA, BNI, BRI, Mandiri" },
 ];
 
 function Checkout() {
-  const { isLoggedIn, user } = useAuth();
+  const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
 
   const [cartItems] = useState(dummyCartItems);
-  const [selectedPayment, setSelectedPayment] = useState("qris");
-  const [selectedPickup, setSelectedPickup] = useState("koperasi");
+  const [selectedPayment, setSelectedPayment] = useState("cash");
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      navigate("/auth");
-    }
+    if (!isLoggedIn) navigate("/auth");
   }, [isLoggedIn, navigate]);
 
   if (!isLoggedIn) return null;
 
   const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+  const isCash = selectedPayment === "cash";
+
   const handleCheckout = async () => {
     setIsProcessing(true);
 
-    // TODO: replace with real backend call + Midtrans Snap
-    // const res = await fetch("/api/orders/create", {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //     Authorization: `Bearer ${token}`
-    //   },
-    //   body: JSON.stringify({ cartItems, paymentMethod: selectedPayment, pickup: selectedPickup })
-    // });
-    // const { token } = await res.json();
-    // window.snap.pay(token, {
-    //   onSuccess: () => navigate("/orders/success"),
-    //   onPending: () => navigate("/orders/pending"),
-    //   onError: () => setIsProcessing(false),
-    //   onClose: () => setIsProcessing(false),
-    // });
+    if (isCash) {
+      // Cash flow — just create order, no payment gateway needed
+      // TODO: replace with real backend call
+      // await fetch("/api/orders/create", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      //   body: JSON.stringify({ cartItems, paymentMethod: "cash" })
+      // });
 
-    // Simulate for now
-    setTimeout(() => {
-      setIsProcessing(false);
-      navigate("/");
-    }, 2000);
+      setTimeout(() => {
+        setIsProcessing(false);
+        navigate("/orders/success", {
+          state: {
+            orderId: "ORD-" + Date.now(),
+            total,
+            items: cartItems,
+            paymentMethod: "cash",
+          }
+        });
+      }, 1000);
+
+    } else {
+      // Online payment flow — Xendit QRIS / VA
+      // TODO: replace with real Xendit call
+      // const res = await fetch("/api/orders/create", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      //   body: JSON.stringify({ cartItems, paymentMethod: selectedPayment })
+      // });
+      // const data = await res.json();
+      // if (selectedPayment === "qris") navigate("/orders/qr", { state: { qrString: data.qrString, orderId: data.orderId, total } });
+      // if (selectedPayment === "virtual_account") navigate("/orders/va", { state: { vaNumber: data.vaNumber, bank: data.bank, orderId: data.orderId, total } });
+
+      setTimeout(() => {
+        setIsProcessing(false);
+        navigate("/orders/success", {
+          state: {
+            orderId: "ORD-" + Date.now(),
+            total,
+            items: cartItems,
+            paymentMethod: selectedPayment,
+          }
+        });
+      }, 1000);
+    }
   };
 
   return (
@@ -151,6 +168,16 @@ function Checkout() {
               </button>
             ))}
           </div>
+
+          {/* Cash notice */}
+          {isCash && (
+            <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-100 rounded-xl px-4 py-3">
+              <Wallet className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-yellow-700">
+                Pesananmu akan dibuat dan menunggu konfirmasi pembayaran dari kasir. Tunjukkan ID pesanan saat membayar di koperasi.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Pay Button */}
@@ -173,7 +200,7 @@ function Checkout() {
             </>
           ) : (
             <>
-              Bayar Sekarang — Rp {total.toLocaleString("id-ID")}
+              {isCash ? "Buat Pesanan" : "Bayar Sekarang"} — Rp {total.toLocaleString("id-ID")}
               <ChevronRight className="w-5 h-5" />
             </>
           )}
