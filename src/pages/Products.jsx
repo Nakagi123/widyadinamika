@@ -16,7 +16,7 @@ const products = [
 ];
 
 function ProductCard({ product }) {
-  const navigate = useNavigate(); // ✅ inside the component
+  const navigate = useNavigate();
   const isOutOfStock = product.stock === 0;
 
   return (

@@ -150,6 +150,14 @@ function Cart() {
                 <span>Rp {total.toLocaleString("id-ID")}</span>
               </div>
             </div>
+
+            {/* Checkout Button */}
+            <button
+              onClick={() => navigate("/checkout")}
+              className="w-full py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-all duration-200 mt-2"
+            >
+              Lanjut ke Pembayaran →
+            </button>
           </>
         )}
 

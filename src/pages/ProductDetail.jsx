@@ -1,27 +1,36 @@
-// src/pages/ProductDetail.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ShoppingCart, ArrowLeft } from "lucide-react";
 
-// Placeholder — will be fetched from backend using the id param
-const placeholderProduct = {
-  id: null,
-  name: "",
-  price: 0,
-  stock: 0,
-  category: "",
-  image: "https://placehold.co/600x400?text=Product+Image",
-};
+const dummyProducts = [
+  { id: "1", name: "Nasi Goreng", price: 10000, stock: 15, category: "Makanan", image: "https://placehold.co/600x400?text=Nasi+Goreng", description: "Nasi goreng spesial koperasi sekolah, enak dan mengenyangkan." },
+  { id: "2", name: "Es Teh Manis", price: 5000, stock: 30, category: "Minuman", image: "https://placehold.co/600x400?text=Es+Teh", description: "Es teh manis segar, cocok untuk menemani istirahat." },
+  { id: "3", name: "Pensil 2B", price: 3000, stock: 50, category: "Alat Tulis", image: "https://placehold.co/600x400?text=Pensil", description: "Pensil 2B berkualitas untuk kebutuhan belajar sehari-hari." },
+  { id: "4", name: "Buku Tulis", price: 8000, stock: 0, category: "Alat Tulis", image: "https://placehold.co/600x400?text=Buku+Tulis", description: "Buku tulis 58 lembar, kertas putih halus." },
+  { id: "5", name: "Mie Goreng", price: 12000, stock: 10, category: "Makanan", image: "https://placehold.co/600x400?text=Mie+Goreng", description: "Mie goreng lezat dengan bumbu spesial." },
+  { id: "6", name: "Air Mineral", price: 4000, stock: 25, category: "Minuman", image: "https://placehold.co/600x400?text=Air+Mineral", description: "Air mineral botol 600ml, segar dan menyehatkan." },
+  { id: "7", name: "Penggaris 30cm", price: 5000, stock: 20, category: "Alat Tulis", image: "https://placehold.co/600x400?text=Penggaris", description: "Penggaris plastik 30cm, transparan dan kuat." },
+  { id: "8", name: "Seragam Putih", price: 85000, stock: 5, category: "Seragam", image: "https://placehold.co/600x400?text=Seragam", description: "Seragam putih sekolah, bahan adem dan nyaman dipakai." },
+];
 
 function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [product] = useState(placeholderProduct);
+  const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [loading] = useState(true); // will be false when backend is connected
+  const [loading, setLoading] = useState(true);
 
-  const isOutOfStock = product.stock === 0;
+  useEffect(() => {
+    // Simulate API fetch with dummy data
+    const found = dummyProducts.find((p) => p.id === id);
+    if (found) {
+      setProduct(found);
+    }
+    setLoading(false);
+  }, [id]);
+
+  const isOutOfStock = product?.stock === 0;
 
   const handleIncrease = () => {
     if (quantity < product.stock) setQuantity((q) => q + 1);
@@ -30,13 +39,6 @@ function ProductDetail() {
   const handleDecrease = () => {
     if (quantity > 1) setQuantity((q) => q - 1);
   };
-
-  // When backend is ready, replace with:
-  // useEffect(() => {
-  //   fetch(`/api/products/${id}`)
-  //     .then(res => res.json())
-  //     .then(data => { setProduct(data); setLoading(false); });
-  // }, [id]);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -62,6 +64,20 @@ function ProductDetail() {
               <div className="h-10 bg-gray-200 rounded-full animate-pulse w-1/2 mt-4" />
             </div>
           </div>
+
+        ) : !product ? (
+          /* Product not found */
+          <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3">
+            <p className="text-5xl">🔍</p>
+            <p className="text-lg font-semibold">Produk tidak ditemukan</p>
+            <button
+              onClick={() => navigate("/products")}
+              className="text-sm text-violet-500 font-semibold hover:underline"
+            >
+              Kembali ke toko
+            </button>
+          </div>
+
         ) : (
           /* Product Detail */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
@@ -94,6 +110,11 @@ function ProductDetail() {
               <h1 className="text-3xl font-bold text-gray-900 leading-tight">
                 {product.name}
               </h1>
+
+              {/* Description */}
+              <p className="text-sm text-gray-500 leading-relaxed">
+                {product.description}
+              </p>
 
               {/* Price */}
               <p className="text-2xl font-bold text-violet-600">
