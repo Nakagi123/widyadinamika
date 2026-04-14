@@ -1,12 +1,13 @@
-const invoice = require("../utils/xendit");
+const xenditClient = require("../utils/xendit");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+
+const { Invoice } = xenditClient;
 
 // POST /api/payment/checkout  (butuh token)
 const checkout = async (req, res, next) => {
   try {
     const { items } = req.body;
-    // items: [{ productId, quantity }]
 
     let totalPrice = 0;
     const orderItems = [];
@@ -18,14 +19,16 @@ const checkout = async (req, res, next) => {
       if (product.stock < item.quantity)
         return res.status(400).json({ message: `Stok ${product.name} tidak cukup` });
 
-      const subtotal = product.price * item.quantity;
-      totalPrice += subtotal;
-      orderItems.push({ product: product._id, quantity: item.quantity, price: product.price });
+      totalPrice += product.price * item.quantity;
+      orderItems.push({
+        product: product._id,
+        quantity: item.quantity,
+        price: product.price,
+      });
     }
 
     const externalId = `ORDER-${Date.now()}-${req.user.id}`;
 
-    // Buat order di database dulu
     const order = await Order.create({
       user: req.user.id,
       items: orderItems,
@@ -33,23 +36,26 @@ const checkout = async (req, res, next) => {
       xenditExternalId: externalId,
     });
 
-    // Request Invoice ke Xendit
-    const xenditInvoice = await invoice.createInvoice({
-      externalID: externalId,
-      amount: totalPrice,
-      payerEmail: req.user.email || `user-${req.user.id}@placeholder.com`,
-      description: `Pembayaran Order #${order._id}`,
-      successRedirectURL: process.env.XENDIT_SUCCESS_REDIRECT,
-      failureRedirectURL: process.env.XENDIT_FAILURE_REDIRECT,
+    // Buat invoice ke Xendit (syntax v7)
+    const xenditInvoice = await Invoice.createInvoice({
+      data: {
+        externalId,
+        amount: totalPrice,
+        description: `Pembayaran Order #${order._id}`,
+        invoiceDuration: 86400, // expired dalam 24 jam (detik)
+        currency: "IDR",
+        successRedirectUrl: process.env.XENDIT_SUCCESS_REDIRECT,
+        failureRedirectUrl: process.env.XENDIT_FAILURE_REDIRECT,
+      },
     });
 
     order.xenditInvoiceId = xenditInvoice.id;
-    order.invoiceUrl = xenditInvoice.invoice_url;
+    order.invoiceUrl = xenditInvoice.invoiceUrl;
     await order.save();
 
     res.json({
-      invoiceUrl: xenditInvoice.invoice_url,
-      expiryDate: xenditInvoice.expiry_date,
+      invoiceUrl: xenditInvoice.invoiceUrl,
+      expiryDate: xenditInvoice.expiryDate,
       orderId: order._id,
     });
   } catch (err) {
@@ -60,7 +66,7 @@ const checkout = async (req, res, next) => {
 // POST /api/payment/notification  (webhook dari Xendit)
 const handleNotification = async (req, res, next) => {
   try {
-    // Verifikasi callback token dari Xendit
+    // Verifikasi callback token dari header Xendit
     const callbackToken = req.headers["x-callback-token"];
     if (callbackToken !== process.env.XENDIT_CALLBACK_TOKEN)
       return res.status(403).json({ message: "Token tidak valid" });
@@ -73,8 +79,6 @@ const handleNotification = async (req, res, next) => {
 
     if (status === "PAID" || status === "SETTLED") {
       order.status = "paid";
-
-      // Kurangi stok produk
       for (const item of order.items) {
         await Product.findByIdAndUpdate(item.product, {
           $inc: { stock: -item.quantity },
@@ -91,7 +95,7 @@ const handleNotification = async (req, res, next) => {
   }
 };
 
-// GET /api/payment/orders  (riwayat order user, butuh token)
+// GET /api/payment/orders  (riwayat order, butuh token)
 const getMyOrders = async (req, res, next) => {
   try {
     const orders = await Order.find({ user: req.user.id })
