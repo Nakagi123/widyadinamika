@@ -12,6 +12,7 @@ import Auth from './pages/Auth.jsx'
 import UserDashboard from "./pages/UserDashboard.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AdminProducts from "./pages/admin/AdminProducts.jsx";
+import AdminStatistics from "./pages/admin/AdminStatistics.jsx";
 import AdminOrders, { AdminOrderDetail } from "./pages/admin/AdminOrders.jsx";
 import Checkout from "./pages/Checkout.jsx"
 import OrderSuccess from "./pages/orders/OrderSuccess.jsx";
@@ -34,6 +35,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/orders/:id" element={<AdminOrderDetail />} />
+            <Route path="/admin/statistics" element={<AdminStatistics />} />
             <Route path="/checkout" element={<Checkout />} />
           </Route>
 
