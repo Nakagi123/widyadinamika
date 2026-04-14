@@ -11,12 +11,13 @@ import ProductDetail from './pages/ProductDetail.jsx'
 import Auth from './pages/Auth.jsx'
 import UserDashboard from "./pages/UserDashboard.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
+import AdminProducts from "./pages/admin/AdminProducts.jsx";
+import AdminOrders, { AdminOrderDetail } from "./pages/admin/AdminOrders.jsx";
 import Checkout from "./pages/Checkout.jsx"
 import OrderSuccess from "./pages/orders/OrderSuccess.jsx";
 import OrderPending from "./pages/orders/OrderPending.jsx";
 import OrderQR from "./pages/orders/OrderQR.jsx";
 import OrderVA from "./pages/orders/OrderVA.jsx";
-import AdminOrders, { AdminOrderDetail } from "./pages/admin/AdminOrders.jsx"; // Update the path as needed
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -30,6 +31,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/cart" element={<Cart />} />
             <Route path="/user" element={<UserDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/orders/:id" element={<AdminOrderDetail />} />
             <Route path="/checkout" element={<Checkout />} />
