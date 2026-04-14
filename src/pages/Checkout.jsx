@@ -35,55 +35,55 @@ function Checkout() {
 
   const isCash = selectedPayment === "cash";
 
-  const handleCheckout = async () => {
+    const handleCheckout = async () => {
     setIsProcessing(true);
 
     if (isCash) {
-      // Cash flow — just create order, no payment gateway needed
-      // TODO: replace with real backend call
-      // await fetch("/api/orders/create", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      //   body: JSON.stringify({ cartItems, paymentMethod: "cash" })
-      // });
-
-      setTimeout(() => {
+        // Cash flow
+        setTimeout(() => {
         setIsProcessing(false);
         navigate("/orders/success", {
-          state: {
+            state: {
             orderId: "ORD-" + Date.now(),
             total,
             items: cartItems,
             paymentMethod: "cash",
-          }
+            }
         });
-      }, 1000);
+        }, 1000);
 
-    } else {
-      // Online payment flow — Xendit QRIS / VA
-      // TODO: replace with real Xendit call
-      // const res = await fetch("/api/orders/create", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      //   body: JSON.stringify({ cartItems, paymentMethod: selectedPayment })
-      // });
-      // const data = await res.json();
-      // if (selectedPayment === "qris") navigate("/orders/qr", { state: { qrString: data.qrString, orderId: data.orderId, total } });
-      // if (selectedPayment === "virtual_account") navigate("/orders/va", { state: { vaNumber: data.vaNumber, bank: data.bank, orderId: data.orderId, total } });
-
-      setTimeout(() => {
+    } else if (selectedPayment === "qris") {
+        // QRIS flow
+        setTimeout(() => {
         setIsProcessing(false);
-        navigate("/orders/success", {
-          state: {
+        navigate("/orders/qr", {
+            state: {
             orderId: "ORD-" + Date.now(),
             total,
             items: cartItems,
-            paymentMethod: selectedPayment,
-          }
+            paymentMethod: "qris",
+            qrString: "dummy-qr-string", // replace with real Xendit qr_string
+            }
         });
-      }, 1000);
+        }, 1000);
+
+    } else if (selectedPayment === "virtual_account") {
+        // VA flow
+        setTimeout(() => {
+        setIsProcessing(false);
+        navigate("/orders/va", {
+            state: {
+            orderId: "ORD-" + Date.now(),
+            total,
+            items: cartItems,
+            paymentMethod: "virtual_account",
+            vaNumber: "1234567890", // replace with real Xendit va_number
+            bank: "BCA",            // replace with real bank
+            }
+        });
+        }, 1000);
     }
-  };
+    };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">

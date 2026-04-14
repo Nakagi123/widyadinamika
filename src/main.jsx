@@ -13,6 +13,8 @@ import UserDashboard from "./pages/UserDashboard.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import Checkout from "./pages/Checkout.jsx"
 import OrderSuccess from "./pages/orders/OrderSuccess.jsx";
+import OrderPending from "./pages/orders/OrderPending.jsx";
+import OrderQR from "./pages/orders/OrderQR.jsx";
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -31,6 +33,8 @@ createRoot(document.getElementById('root')).render(
 
           <Route path="/auth" element={<Auth />} />
           <Route path="/orders/success" element={<OrderSuccess />} />
+          <Route path="/orders/pending" element={<OrderPending />} />
+          <Route path="/orders/qr" element={<OrderQR />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
