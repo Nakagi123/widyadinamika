@@ -62,7 +62,7 @@ function Checkout() {
             total,
             items: cartItems,
             paymentMethod: "qris",
-            qrString: "dummy-qr-string", // replace with real Xendit qr_string
+            qrString: "https://youtu.be/dQw4w9WgXcQ?si=2JdVJot0QwlHGZ7-", 
             }
         });
         }, 1000);
@@ -77,8 +77,8 @@ function Checkout() {
             total,
             items: cartItems,
             paymentMethod: "virtual_account",
-            vaNumber: "1234567890", // replace with real Xendit va_number
-            bank: "BCA",            // replace with real bank
+            vaNumber: "1234567890", 
+            bank: "BCA",            
             }
         });
         }, 1000);

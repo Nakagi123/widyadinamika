@@ -15,6 +15,7 @@ import Checkout from "./pages/Checkout.jsx"
 import OrderSuccess from "./pages/orders/OrderSuccess.jsx";
 import OrderPending from "./pages/orders/OrderPending.jsx";
 import OrderQR from "./pages/orders/OrderQR.jsx";
+import OrderVA from "./pages/orders/OrderVA.jsx";
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -35,6 +36,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/orders/success" element={<OrderSuccess />} />
           <Route path="/orders/pending" element={<OrderPending />} />
           <Route path="/orders/qr" element={<OrderQR />} />
+          <Route path="/orders/va" element={<OrderVA />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
