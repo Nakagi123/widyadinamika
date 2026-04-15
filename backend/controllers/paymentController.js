@@ -4,10 +4,10 @@ const Product = require("../models/Product");
 
 const { Invoice } = xenditClient;
 
-// POST /api/payment/checkout  (butuh token)
 const checkout = async (req, res, next) => {
   try {
-    const { items } = req.body;
+    const { items, paymentMethod } = req.body;
+    // paymentMethod: "cash" | "qris" | "transfer"
 
     let totalPrice = 0;
     const orderItems = [];
@@ -33,17 +33,36 @@ const checkout = async (req, res, next) => {
       user: req.user.id,
       items: orderItems,
       totalPrice,
+      paymentMethod,
       xenditExternalId: externalId,
+      // cash langsung pending, menunggu konfirmasi kasir
+      status: "pending",
     });
 
-    // Buat invoice ke Xendit (syntax v7)
+    // ── Bayar di Tempat ──────────────────────────────
+    if (paymentMethod === "cash") {
+      return res.status(201).json({
+        message: "Pesanan dibuat. Tunjukkan ID pesanan ke kasir.",
+        orderId: order._id,
+        totalPrice,
+      });
+    }
+
+    // ── QRIS & Transfer Bank → pakai Xendit Invoice ──
+    // Xendit Invoice otomatis menampilkan metode sesuai yang diaktifkan di dashboard
+    const paymentMethodsMap = {
+      qris:     ["QR_CODE"],
+      transfer: ["BANK_TRANSFER"],
+    };
+
     const xenditInvoice = await Invoice.createInvoice({
       data: {
         externalId,
         amount: totalPrice,
         description: `Pembayaran Order #${order._id}`,
-        invoiceDuration: 86400, // expired dalam 24 jam (detik)
+        invoiceDuration: 86400,
         currency: "IDR",
+        paymentMethods: paymentMethodsMap[paymentMethod],
         successRedirectUrl: process.env.XENDIT_SUCCESS_REDIRECT,
         failureRedirectUrl: process.env.XENDIT_FAILURE_REDIRECT,
       },
@@ -53,20 +72,72 @@ const checkout = async (req, res, next) => {
     order.invoiceUrl = xenditInvoice.invoiceUrl;
     await order.save();
 
-    res.json({
+    return res.status(201).json({
       invoiceUrl: xenditInvoice.invoiceUrl,
       expiryDate: xenditInvoice.expiryDate,
       orderId: order._id,
     });
+
+  } catch (err) {
+    next(err);
+  }
+};
+const kasirGetAllOrders = async (req, res, next) => {
+  try {
+    // Kasir lihat semua order cash yang masih pending
+    const { status } = req.query; // ?status=pending
+
+    const filter = { paymentMethod: "cash" };
+    if (status) filter.status = status;
+
+    const orders = await Order.find(filter)
+      .populate("user", "username")
+      .populate("items.product", "name price")
+      .sort({ createdAt: -1 });
+
+    res.json(orders);
   } catch (err) {
     next(err);
   }
 };
 
-// POST /api/payment/notification  (webhook dari Xendit)
+const kasirUpdateStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    // status yang boleh diubah kasir: "paid" atau "cancelled"
+
+    if (!["paid", "cancelled"].includes(status)) {
+      return res.status(400).json({ message: "Status tidak valid" });
+    }
+
+    const order = await Order.findById(req.params.orderId);
+    if (!order)
+      return res.status(404).json({ message: "Order tidak ditemukan" });
+    if (order.paymentMethod !== "cash")
+      return res.status(400).json({ message: "Hanya order cash yang bisa dikonfirmasi kasir" });
+    if (order.status !== "pending")
+      return res.status(400).json({ message: `Order sudah berstatus ${order.status}` });
+
+    order.status = status;
+
+    // Kalau paid, kurangi stok
+    if (status === "paid") {
+      for (const item of order.items) {
+        await Product.findByIdAndUpdate(item.product, {
+          $inc: { stock: -item.quantity },
+        });
+      }
+    }
+
+    await order.save();
+    res.json({ message: `Order berhasil diubah menjadi ${status}`, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const handleNotification = async (req, res, next) => {
   try {
-    // Verifikasi callback token dari header Xendit
     const callbackToken = req.headers["x-callback-token"];
     if (callbackToken !== process.env.XENDIT_CALLBACK_TOKEN)
       return res.status(403).json({ message: "Token tidak valid" });
@@ -95,7 +166,6 @@ const handleNotification = async (req, res, next) => {
   }
 };
 
-// GET /api/payment/orders  (riwayat order, butuh token)
 const getMyOrders = async (req, res, next) => {
   try {
     const orders = await Order.find({ user: req.user.id })
@@ -107,4 +177,10 @@ const getMyOrders = async (req, res, next) => {
   }
 };
 
-module.exports = { checkout, handleNotification, getMyOrders };
+module.exports = {
+  checkout,
+  handleNotification,
+  getMyOrders,
+  kasirGetAllOrders,
+  kasirUpdateStatus,
+};

@@ -34,7 +34,7 @@ const login = async (req, res, next) => {
       return res.status(400).json({ message: "Password salah" });
 
     const token = jwt.sign(
-      { id: user._id, username: user.username },
+      { id: user._id, username: user.username, role: user.role }, // ← role ikut
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
@@ -55,4 +55,23 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe };
+// POST /api/auth/register-kasir  (hanya bisa dipakai sekali / dibatasi)
+const registerKasir = async (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+
+    const exist = await User.findOne({ username });
+    if (exist)
+      return res.status(400).json({ message: "Username sudah digunakan" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await User.create({ username, password: hashedPassword, role: "kasir" });
+
+    res.status(201).json({ message: "Akun kasir berhasil dibuat" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+module.exports = { register, login, getMe, registerKasir };
