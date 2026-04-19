@@ -7,7 +7,6 @@ const { Invoice } = xenditClient;
 const checkout = async (req, res, next) => {
   try {
     const { items, paymentMethod } = req.body;
-    // paymentMethod: "cash" | "qris" | "transfer"
 
     let totalPrice = 0;
     const orderItems = [];
@@ -35,11 +34,9 @@ const checkout = async (req, res, next) => {
       totalPrice,
       paymentMethod,
       xenditExternalId: externalId,
-      // cash langsung pending, menunggu konfirmasi kasir
       status: "pending",
     });
 
-    // ── Bayar di Tempat ──────────────────────────────
     if (paymentMethod === "cash") {
       return res.status(201).json({
         message: "Pesanan dibuat. Tunjukkan ID pesanan ke kasir.",
@@ -48,13 +45,6 @@ const checkout = async (req, res, next) => {
       });
     }
 
-    // ── QRIS & Transfer Bank → pakai Xendit Invoice ──
-    // Xendit Invoice otomatis menampilkan metode sesuai yang diaktifkan di dashboard
-    const paymentMethodsMap = {
-      qris:     ["QR_CODE"],
-      transfer: ["BANK_TRANSFER"],
-    };
-
     const xenditInvoice = await Invoice.createInvoice({
       data: {
         externalId,
@@ -62,7 +52,7 @@ const checkout = async (req, res, next) => {
         description: `Pembayaran Order #${order._id}`,
         invoiceDuration: 86400,
         currency: "IDR",
-        paymentMethods: paymentMethodsMap[paymentMethod],
+        payerEmail: `user-${req.user.id}@test.com`,
         successRedirectUrl: process.env.XENDIT_SUCCESS_REDIRECT,
         failureRedirectUrl: process.env.XENDIT_FAILURE_REDIRECT,
       },
@@ -82,10 +72,10 @@ const checkout = async (req, res, next) => {
     next(err);
   }
 };
+
 const kasirGetAllOrders = async (req, res, next) => {
   try {
-    // Kasir lihat semua order cash yang masih pending
-    const { status } = req.query; // ?status=pending
+    const { status } = req.query;
 
     const filter = { paymentMethod: "cash" };
     if (status) filter.status = status;
@@ -104,7 +94,6 @@ const kasirGetAllOrders = async (req, res, next) => {
 const kasirUpdateStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-    // status yang boleh diubah kasir: "paid" atau "cancelled"
 
     if (!["paid", "cancelled"].includes(status)) {
       return res.status(400).json({ message: "Status tidak valid" });
@@ -120,7 +109,6 @@ const kasirUpdateStatus = async (req, res, next) => {
 
     order.status = status;
 
-    // Kalau paid, kurangi stok
     if (status === "paid") {
       for (const item of order.items) {
         await Product.findByIdAndUpdate(item.product, {

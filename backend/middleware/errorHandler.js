@@ -7,6 +7,7 @@ const errorHandler = (err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     message,
+    detail: err.response?.data || err.rawResponse || null,
   });
 };
 
