@@ -15,6 +15,7 @@ app.use(express.json());
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/products", require("./routes/product"));
 app.use("/api/payment", require("./routes/payment"));
+app.use("/api/cart", require("./routes/cart"));
 
 // Global error handler (harus paling bawah)
 app.use(errorHandler);

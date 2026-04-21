@@ -1,6 +1,7 @@
 const xenditClient = require("../utils/xendit");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const Cart = require("../models/Cart");
 
 const { Invoice } = xenditClient;
 
@@ -37,13 +38,14 @@ const checkout = async (req, res, next) => {
       status: "pending",
     });
 
-    if (paymentMethod === "cash") {
-      return res.status(201).json({
-        message: "Pesanan dibuat. Tunjukkan ID pesanan ke kasir.",
-        orderId: order._id,
-        totalPrice,
-      });
-    }
+   if (paymentMethod === "cash") {
+  await Cart.findOneAndDelete({ user: req.user.id }); 
+  return res.status(201).json({
+    message: "Pesanan dibuat. Tunjukkan ID pesanan ke kasir.",
+    orderId: order._id,
+    totalPrice,
+  });
+}
 
     const xenditInvoice = await Invoice.createInvoice({
       data: {
@@ -61,6 +63,7 @@ const checkout = async (req, res, next) => {
     order.xenditInvoiceId = xenditInvoice.id;
     order.invoiceUrl = xenditInvoice.invoiceUrl;
     await order.save();
+    await Cart.findOneAndDelete({ user: req.user.id });
 
     return res.status(201).json({
       invoiceUrl: xenditInvoice.invoiceUrl,
