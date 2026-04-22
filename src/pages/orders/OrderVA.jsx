@@ -1,25 +1,26 @@
+// src/pages/orders/OrderVA.jsx
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { paymentService } from "../../lib/api";
 import { Building2, Clock, Copy, CheckCheck, Home, RefreshCw } from "lucide-react";
 
 function OrderVA() {
-  const { isLoggedIn } = useAuth();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const order = location.state;
-
-  const [timeLeft, setTimeLeft] = useState(3600); // 1 hour countdown
+  const [timeLeft, setTimeLeft] = useState(86400); // 24 hours for VA
   const [isExpired, setIsExpired] = useState(false);
   const [copied, setCopied] = useState(false);
   const pollRef = useRef(null);
   const timerRef = useRef(null);
 
   useEffect(() => {
-    if (!isLoggedIn) navigate("/auth");
+    if (!isAuthenticated) navigate("/auth");
     if (!order) navigate("/");
-  }, [isLoggedIn, order, navigate]);
+  }, [isAuthenticated, order, navigate]);
 
   // Countdown timer
   useEffect(() => {
@@ -37,16 +38,34 @@ function OrderVA() {
     return () => clearInterval(timerRef.current);
   }, []);
 
+  // Poll payment status using the check-status endpoint
   useEffect(() => {
-    if (!order?.orderId) return;
+    if (!order?.orderId || isExpired) return;
 
-    pollRef.current = setInterval(async () => {
-    }, 3000);
+    const checkPaymentStatus = async () => {
+      try {
+        const response = await paymentService.checkPaymentStatus(order.orderId);
+        console.log("Payment status:", response.data.status);
+        
+        if (response.data.status === "paid") {
+          // Payment confirmed!
+          clearInterval(pollRef.current);
+          clearInterval(timerRef.current);
+          navigate("/orders/success", { state: { ...order, status: "paid" } });
+        }
+      } catch (err) {
+        console.error("Failed to check payment status:", err);
+      }
+    };
+
+    // Check immediately, then every 5 seconds
+    checkPaymentStatus();
+    pollRef.current = setInterval(checkPaymentStatus, 5000);
 
     return () => clearInterval(pollRef.current);
-  }, [order, navigate]);
+  }, [order, navigate, isExpired]);
 
-  // Cleanup
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       clearInterval(pollRef.current);
@@ -54,14 +73,15 @@ function OrderVA() {
     };
   }, []);
 
-  if (!isLoggedIn || !order) return null;
+  if (!isAuthenticated || !order) return null;
 
-  const hours = String(Math.floor(timeLeft / 3600)).padStart(2, "0");
+  const days = String(Math.floor(timeLeft / 86400)).padStart(2, "0");
+  const hours = String(Math.floor((timeLeft % 86400) / 3600)).padStart(2, "0");
   const minutes = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, "0");
   const seconds = String(timeLeft % 60).padStart(2, "0");
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(order.vaNumber || "1234567890");
+    navigator.clipboard.writeText(order.vaNumber || order.invoiceUrl || "1234567890");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -75,7 +95,7 @@ function OrderVA() {
   };
 
   const steps = [
-    `Buka aplikasi mobile banking ${order.bank || ""}`,
+    `Buka aplikasi mobile banking ${order.bank || "kamu"}`,
     "Pilih menu Transfer → Virtual Account",
     "Masukkan nomor Virtual Account di bawah",
     `Masukkan nominal Rp ${order.total?.toLocaleString("id-ID")}`,
@@ -116,53 +136,28 @@ function OrderVA() {
             </div>
           ) : (
             <>
-              {/* Bank Badge */}
-              <div className="flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-violet-500" />
-                <span className={`text-xs font-bold px-3 py-1 rounded-full ${bankColors[order.bank] || "bg-gray-100 text-gray-600"}`}>
-                  {order.bank || "Bank"}
-                </span>
-              </div>
-
-              {/* VA Number */}
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-gray-400">Nomor Virtual Account</p>
-                <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-                  <p className="text-xl font-bold text-gray-900 tracking-widest">
-                    {order.vaNumber || "1234567890"}
-                  </p>
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
-                  >
-                    {copied
-                      ? <><CheckCheck className="w-4 h-4 text-green-500" /> Disalin</>
-                      : <><Copy className="w-4 h-4" /> Salin</>
-                    }
-                  </button>
-                </div>
-              </div>
-
-              {/* Total */}
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-gray-400">Jumlah Transfer</p>
-                <div className="flex items-center justify-between bg-violet-50 border border-violet-100 rounded-xl px-4 py-3">
-                  <p className="text-xl font-bold text-violet-600">
-                    Rp {order.total?.toLocaleString("id-ID")}
-                  </p>
-                </div>
-                <p className="text-xs text-red-400 mt-1">
-                  ⚠️ Transfer sesuai nominal di atas. Lebih atau kurang akan otomatis ditolak.
+              {/* Payment Link Button - For Xendit hosted page */}
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-4">
+                  Klik tombol di bawah untuk melanjutkan ke halaman pembayaran Virtual Account
                 </p>
+                <a
+                  href={order.invoiceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block px-6 py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+                >
+                  Lanjutkan ke Pembayaran
+                </a>
               </div>
 
               {/* Countdown */}
-              <div className="flex items-center justify-center gap-2 text-gray-500 border-t border-gray-100 pt-3">
+              <div className="flex items-center justify-center gap-2 text-gray-500 pt-4">
                 <Clock className="w-4 h-4" />
                 <p className="text-sm">
-                  Berlaku selama{" "}
-                  <span className={`font-bold ${timeLeft <= 300 ? "text-red-500" : "text-violet-600"}`}>
-                    {hours}:{minutes}:{seconds}
+                  Selesaikan pembayaran dalam{" "}
+                  <span className={`font-bold ${timeLeft <= 3600 ? "text-red-500" : "text-violet-600"}`}>
+                    {days !== "00" && `${days}:`}{hours}:{minutes}:{seconds}
                   </span>
                 </p>
               </div>
@@ -174,7 +169,7 @@ function OrderVA() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-400">Order ID</p>
-            <p className="text-sm font-bold text-gray-900">{order.orderId}</p>
+            <p className="text-sm font-bold text-gray-900">{order.orderId?.slice(-8).toUpperCase()}</p>
           </div>
           <div className="flex justify-between items-center border-t border-gray-100 pt-3">
             <p className="text-sm text-gray-400">Total</p>
@@ -184,7 +179,7 @@ function OrderVA() {
           </div>
         </div>
 
-        {/* Steps */}
+        {/* Payment Steps */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4">
           <h2 className="text-base font-bold text-gray-900">Cara Pembayaran</h2>
           <ol className="flex flex-col gap-3">

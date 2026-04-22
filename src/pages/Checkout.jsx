@@ -2,88 +2,149 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ShoppingBag, CreditCard, ChevronRight, Wallet } from "lucide-react";
-
-// Dummy cart items — replace with real cart data later
-const dummyCartItems = [
-  { id: 1, name: "Nasi Goreng", price: 10000, quantity: 2, image: "https://placehold.co/100x100?text=Nasi+Goreng" },
-  { id: 2, name: "Es Teh Manis", price: 5000, quantity: 1, image: "https://placehold.co/100x100?text=Es+Teh" },
-  { id: 3, name: "Pensil 2B", price: 3000, quantity: 3, image: "https://placehold.co/100x100?text=Pensil" },
-];
+import { cartService, paymentService } from "../lib/api";
+import { ShoppingBag, CreditCard, ChevronRight, Wallet, Loader } from "lucide-react";
 
 const paymentMethods = [
   { id: "cash", label: "Bayar di Tempat", description: "Bayar langsung dengan cash di koperasi sekolah" },
   { id: "qris", label: "QRIS", description: "GoPay, OVO, Dana, ShopeePay, dll" },
-  { id: "virtual_account", label: "Transfer Bank", description: "BCA, BNI, BRI, Mandiri" },
+  { id: "transfer", label: "Transfer Bank", description: "BCA, BNI, BRI, Mandiri" },
 ];
 
 function Checkout() {
-  const { isLoggedIn } = useAuth();
+  const { isAuthenticated, isKasir } = useAuth();
   const navigate = useNavigate();
-
-  const [cartItems] = useState(dummyCartItems);
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState("cash");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Fetch cart from API
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      const response = await cartService.getCart();
+      setCartItems(response.data.items || []);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch cart:", err);
+      setError(err.message || "Gagal memuat keranjang");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!isLoggedIn) navigate("/auth");
-  }, [isLoggedIn, navigate]);
+    if (isKasir) {
+      navigate("/admin");
+      return;
+    }
+    if (!isAuthenticated) {
+      navigate("/auth");
+      return;
+    }
+    
+    fetchCart();
+  }, [isAuthenticated, isKasir, navigate]);
 
-  if (!isLoggedIn) return null;
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) {
+      alert("Keranjang Anda kosong");
+      return;
+    }
 
-  const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    setIsProcessing(true);
+    setError(null);
+
+    // Prepare items for API - product is the ID directly from cart
+    const items = cartItems.map(item => ({
+      productId: item.product,
+      quantity: item.quantity
+    }));
+
+    console.log("Checkout items:", items);
+
+    try {
+      const response = await paymentService.checkout(items, selectedPayment);
+      console.log("Checkout response:", response.data);
+      
+      if (selectedPayment === "cash") {
+        // Cash payment - redirect to success page with order info
+        navigate("/orders/success", {
+          state: {
+            orderId: response.data.orderId,
+            total: response.data.totalPrice,
+            items: cartItems,
+            paymentMethod: "cash",
+            message: response.data.message
+          }
+        });
+      } else if (response.data.invoiceUrl) {
+        // Online payment - redirect to Xendit payment page
+        window.location.href = response.data.invoiceUrl;
+      } else {
+        setError("Terjadi kesalahan, silakan coba lagi");
+      }
+    } catch (err) {
+      console.error("Checkout failed:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Gagal memproses pesanan";
+      setError(errorMsg);
+      alert(errorMsg);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const total = cartItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
 
   const isCash = selectedPayment === "cash";
 
-    const handleCheckout = async () => {
-    setIsProcessing(true);
+  if (!isAuthenticated || isKasir) return null;
 
-    if (isCash) {
-        // Cash flow
-        setTimeout(() => {
-        setIsProcessing(false);
-        navigate("/orders/success", {
-            state: {
-            orderId: "ORD-" + Date.now(),
-            total,
-            items: cartItems,
-            paymentMethod: "cash",
-            }
-        });
-        }, 1000);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 font-sans">
+        <div className="max-w-2xl mx-auto px-6 py-10">
+          <div className="mb-8">
+            <div className="h-8 bg-gray-200 rounded animate-pulse w-48 mb-2" />
+            <div className="h-4 bg-gray-200 rounded animate-pulse w-64" />
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center justify-center py-12">
+              <Loader className="w-8 h-8 text-violet-600 animate-spin" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    } else if (selectedPayment === "qris") {
-        // QRIS flow
-        setTimeout(() => {
-        setIsProcessing(false);
-        navigate("/orders/qr", {
-            state: {
-            orderId: "ORD-" + Date.now(),
-            total,
-            items: cartItems,
-            paymentMethod: "qris",
-            qrString: "https://youtu.be/dQw4w9WgXcQ?si=2JdVJot0QwlHGZ7-", 
-            }
-        });
-        }, 1000);
-
-    } else if (selectedPayment === "virtual_account") {
-        // VA flow
-        setTimeout(() => {
-        setIsProcessing(false);
-        navigate("/orders/va", {
-            state: {
-            orderId: "ORD-" + Date.now(),
-            total,
-            items: cartItems,
-            paymentMethod: "virtual_account",
-            vaNumber: "1234567890", 
-            bank: "BCA",            
-            }
-        });
-        }, 1000);
-    }
-    };
+  if (cartItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 font-sans">
+        <div className="max-w-2xl mx-auto px-6 py-10">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
+            <p className="text-gray-400 mt-1">Periksa pesananmu sebelum membayar</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+            <p className="text-5xl mb-4">🛒</p>
+            <p className="text-gray-400 mb-4">Keranjang Anda kosong</p>
+            <button
+              onClick={() => navigate("/products")}
+              className="px-6 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700"
+            >
+              Belanja Sekarang
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -95,6 +156,13 @@ function Checkout() {
           <p className="text-gray-400 mt-1">Periksa pesananmu sebelum membayar</p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        )}
+
         {/* Order Summary */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4">
           <div className="flex items-center gap-2">
@@ -102,16 +170,19 @@ function Checkout() {
             <h2 className="text-lg font-bold text-gray-900">Ringkasan Pesanan</h2>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 max-h-80 overflow-y-auto">
             {cartItems.map((item) => (
-              <div key={item.id} className="flex items-center gap-3">
+              <div key={item.product} className="flex items-center gap-3">
                 <img
-                  src={item.image}
-                  alt={item.name}
+                  src={item.productImage || "https://placehold.co/100x100?text=No+Image"}
+                  alt={item.productName}
                   className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
+                  onError={(e) => {
+                    e.target.src = "https://placehold.co/100x100?text=No+Image";
+                  }}
                 />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                  <p className="text-sm font-semibold text-gray-900">{item.productName}</p>
                   <p className="text-xs text-gray-400">{item.quantity}x Rp {item.price.toLocaleString("id-ID")}</p>
                 </div>
                 <p className="text-sm font-bold text-violet-600">
@@ -174,7 +245,8 @@ function Checkout() {
             <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-100 rounded-xl px-4 py-3">
               <Wallet className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-yellow-700">
-                Pesananmu akan dibuat dan menunggu konfirmasi pembayaran dari kasir. Tunjukkan ID pesanan saat membayar di koperasi.
+                Pesananmu akan dibuat dan menunggu konfirmasi pembayaran dari kasir. 
+                Tunjukkan ID pesanan saat membayar di koperasi.
               </p>
             </div>
           )}
@@ -183,19 +255,16 @@ function Checkout() {
         {/* Pay Button */}
         <button
           onClick={handleCheckout}
-          disabled={isProcessing}
+          disabled={isProcessing || cartItems.length === 0}
           className={`w-full py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 transition-all duration-200 shadow-md
-            ${isProcessing
+            ${isProcessing || cartItems.length === 0
               ? "bg-violet-400 cursor-not-allowed"
               : "bg-violet-600 hover:bg-violet-700 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
             }`}
         >
           {isProcessing ? (
             <>
-              <svg className="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
+              <Loader className="w-5 h-5 animate-spin" />
               Memproses...
             </>
           ) : (

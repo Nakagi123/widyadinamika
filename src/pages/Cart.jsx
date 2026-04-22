@@ -10,8 +10,8 @@ function CartItem({ item, onIncrease, onDecrease, onRemove, isUpdating }) {
       
       {/* Image */}
       <img
-        src={item.productImage || item.product?.image?.url || "https://placehold.co/100x100?text=No+Image"}
-        alt={item.productName || item.product?.name}
+        src={item.productImage || "https://placehold.co/100x100?text=No+Image"}
+        alt={item.productName}
         className="w-20 h-20 object-cover rounded-xl flex-shrink-0"
         onError={(e) => {
           e.target.src = "https://placehold.co/100x100?text=No+Image";
@@ -20,19 +20,19 @@ function CartItem({ item, onIncrease, onDecrease, onRemove, isUpdating }) {
 
       {/* Info */}
       <div className="flex-1 flex flex-col gap-1">
-        <h3 className="font-semibold text-gray-900">{item.productName || item.product?.name}</h3>
+        <h3 className="font-semibold text-gray-900">{item.productName}</h3>
         <p className="text-violet-600 font-bold">
-          Rp {(item.price || item.product?.price).toLocaleString("id-ID")}
+          Rp {item.price.toLocaleString("id-ID")}
         </p>
         <p className="text-xs text-gray-400">
-          Subtotal: Rp {((item.price || item.product?.price) * item.quantity).toLocaleString("id-ID")}
+          Subtotal: Rp {(item.price * item.quantity).toLocaleString("id-ID")}
         </p>
       </div>
 
       {/* Quantity Controls */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => onDecrease(item.product?._id || item.productId)}
+          onClick={() => onDecrease(item.product)}
           disabled={isUpdating}
           className="w-8 h-8 rounded-full border border-gray-300 text-gray-600 hover:border-violet-400 hover:text-violet-500 transition-colors flex items-center justify-center font-bold disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -42,7 +42,7 @@ function CartItem({ item, onIncrease, onDecrease, onRemove, isUpdating }) {
           {item.quantity}
         </span>
         <button
-          onClick={() => onIncrease(item.product?._id || item.productId)}
+          onClick={() => onIncrease(item.product)}
           disabled={isUpdating}
           className="w-8 h-8 rounded-full border border-gray-300 text-gray-600 hover:border-violet-400 hover:text-violet-500 transition-colors flex items-center justify-center font-bold disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -52,7 +52,7 @@ function CartItem({ item, onIncrease, onDecrease, onRemove, isUpdating }) {
 
       {/* Remove Button */}
       <button
-        onClick={() => onRemove(item.product?._id || item.productId)}
+        onClick={() => onRemove(item.product)}
         disabled={isUpdating}
         className="p-2 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -76,7 +76,7 @@ function Cart() {
     try {
       setLoading(true);
       const response = await cartService.getCart();
-      // The cart response has { items: [], totalPrice: 0 }
+      // Cart response has { items: [], totalPrice: 0 }
       setCartItems(response.data.items || []);
       setError(null);
     } catch (err) {
@@ -88,33 +88,28 @@ function Cart() {
   };
 
   useEffect(() => {
-    // Redirect kasir users away from cart
     if (isKasir) {
       navigate("/admin");
       return;
     }
-    // Redirect non-authenticated users to login
     if (!isAuthenticated) {
       navigate("/auth");
       return;
     }
     
-    // Fetch cart
     fetchCart();
   }, [isAuthenticated, isKasir, navigate]);
 
   const handleIncrease = async (productId) => {
     if (!productId) return;
     
-    const currentItem = cartItems.find(item => 
-      (item.product?._id === productId || item.productId === productId)
-    );
+    const currentItem = cartItems.find(item => item.product === productId);
     const newQuantity = (currentItem?.quantity || 1) + 1;
     
     setUpdatingItemId(productId);
     try {
       await cartService.updateCartItem(productId, newQuantity);
-      await fetchCart(); // Refresh cart
+      await fetchCart();
     } catch (err) {
       console.error("Failed to update quantity:", err);
       alert(err.response?.data?.message || "Gagal mengupdate jumlah");
@@ -126,14 +121,11 @@ function Cart() {
   const handleDecrease = async (productId) => {
     if (!productId) return;
     
-    const currentItem = cartItems.find(item => 
-      (item.product?._id === productId || item.productId === productId)
-    );
+    const currentItem = cartItems.find(item => item.product === productId);
     
     if (!currentItem) return;
     
     if (currentItem.quantity === 1) {
-      // If quantity is 1, remove the item
       await handleRemove(productId);
       return;
     }
@@ -143,7 +135,7 @@ function Cart() {
     setUpdatingItemId(productId);
     try {
       await cartService.updateCartItem(productId, newQuantity);
-      await fetchCart(); // Refresh cart
+      await fetchCart();
     } catch (err) {
       console.error("Failed to update quantity:", err);
       alert(err.response?.data?.message || "Gagal mengupdate jumlah");
@@ -158,7 +150,7 @@ function Cart() {
     setUpdatingItemId(productId);
     try {
       await cartService.removeCartItem(productId);
-      await fetchCart(); // Refresh cart
+      await fetchCart();
     } catch (err) {
       console.error("Failed to remove item:", err);
       alert(err.response?.data?.message || "Gagal menghapus item");
@@ -172,7 +164,7 @@ function Cart() {
     
     try {
       await cartService.clearCart();
-      await fetchCart(); // Refresh cart
+      await fetchCart();
       alert("Keranjang berhasil dikosongkan");
     } catch (err) {
       console.error("Failed to clear cart:", err);
@@ -181,11 +173,10 @@ function Cart() {
   };
 
   const total = cartItems.reduce(
-    (sum, item) => sum + (item.price || item.product?.price || 0) * item.quantity,
+    (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  // Don't render anything while redirecting
   if (!isAuthenticated || isKasir) return null;
 
   if (loading) {
@@ -256,7 +247,6 @@ function Cart() {
         </div>
 
         {cartItems.length === 0 ? (
-          /* Empty State */
           <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3">
             <p className="text-5xl">🛒</p>
             <p className="text-lg font-semibold">Keranjangmu kosong</p>
@@ -270,21 +260,19 @@ function Cart() {
           </div>
         ) : (
           <>
-            {/* Cart Items */}
             <div className="flex flex-col gap-4">
               {cartItems.map((item) => (
                 <CartItem
-                  key={item.product?._id || item.productId}
+                  key={item.product}
                   item={item}
                   onIncrease={handleIncrease}
                   onDecrease={handleDecrease}
                   onRemove={handleRemove}
-                  isUpdating={updatingItemId === (item.product?._id || item.productId)}
+                  isUpdating={updatingItemId === item.product}
                 />
               ))}
             </div>
 
-            {/* Total Summary */}
             <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-3">
               <div className="flex justify-between text-gray-500 text-sm">
                 <span>Subtotal ({cartItems.length} item)</span>
@@ -300,7 +288,6 @@ function Cart() {
               </div>
             </div>
 
-            {/* Checkout Button */}
             <button
               onClick={() => navigate("/checkout")}
               className="w-full py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-all duration-200 mt-2"

@@ -2,134 +2,44 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { paymentService } from "../../lib/api";
 import { 
   Search, CheckCircle, XCircle, ChevronDown, ChevronUp, 
-  Banknote, QrCode, Building2, Eye, ArrowLeft 
+  Banknote, QrCode, Building2, Eye, ArrowLeft, Loader, Trash2
 } from "lucide-react";
-
-const initialOrders = [
-  {
-    id: "ORD-001",
-    studentName: "Budi Santoso",
-    studentClass: "XII IPA 1",
-    date: "2025-04-14T08:30:00",
-    paymentMethod: "cash",
-    status: "pending",
-    total: 25000,
-    items: [
-      { name: "Nasi Goreng", quantity: 2, price: 10000 },
-      { name: "Es Teh Manis", quantity: 1, price: 5000 },
-    ],
-  },
-  {
-    id: "ORD-002",
-    studentName: "Siti Rahayu",
-    studentClass: "XI IPS 2",
-    date: "2025-04-14T09:10:00",
-    paymentMethod: "qris",
-    status: "pending",
-    total: 12000,
-    items: [
-      { name: "Mie Goreng", quantity: 1, price: 12000 },
-    ],
-  },
-  {
-    id: "ORD-003",
-    studentName: "Andi Prasetyo",
-    studentClass: "X MIPA 3",
-    date: "2025-04-14T09:45:00",
-    paymentMethod: "virtual_account",
-    status: "pending",
-    total: 93000,
-    items: [
-      { name: "Seragam Putih", quantity: 1, price: 85000 },
-      { name: "Pensil 2B", quantity: 2, price: 3000 },
-      { name: "Air Mineral", quantity: 1, price: 4000 },
-    ],
-  },
-  {
-    id: "ORD-004",
-    studentName: "Dewi Lestari",
-    studentClass: "XII IPS 1",
-    date: "2025-04-13T11:00:00",
-    paymentMethod: "cash",
-    status: "confirmed",
-    total: 18000,
-    items: [
-      { name: "Buku Tulis", quantity: 2, price: 8000 },
-      { name: "Pensil 2B", quantity: 2, price: 3000 },
-    ],
-  },
-  {
-    id: "ORD-005",
-    studentName: "Reza Firmansyah",
-    studentClass: "XI MIPA 2",
-    date: "2025-04-13T13:20:00",
-    paymentMethod: "qris",
-    status: "confirmed",
-    total: 9000,
-    items: [
-      { name: "Es Teh Manis", quantity: 1, price: 5000 },
-      { name: "Air Mineral", quantity: 1, price: 4000 },
-    ],
-  },
-  {
-    id: "ORD-006",
-    studentName: "Maya Indah",
-    studentClass: "X IPS 1",
-    date: "2025-04-12T10:15:00",
-    paymentMethod: "virtual_account",
-    status: "cancelled",
-    total: 85000,
-    items: [
-      { name: "Seragam Putih", quantity: 1, price: 85000 },
-    ],
-  },
-  {
-    id: "ORD-007",
-    studentName: "Fajar Nugroho",
-    studentClass: "XII MIPA 2",
-    date: "2025-04-14T10:00:00",
-    paymentMethod: "cash",
-    status: "pending",
-    total: 22000,
-    items: [
-      { name: "Mie Goreng", quantity: 1, price: 12000 },
-      { name: "Es Teh Manis", quantity: 2, price: 5000 },
-    ],
-  },
-];
 
 const STATUS_CONFIG = {
   pending:   { label: "Menunggu",   color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-400" },
-  confirmed: { label: "Dikonfirmasi", color: "bg-green-100 text-green-700",  dot: "bg-green-400" },
+  paid:      { label: "Dikonfirmasi", color: "bg-green-100 text-green-700",  dot: "bg-green-400" },
   cancelled: { label: "Dibatalkan", color: "bg-red-100 text-red-600",       dot: "bg-red-400"   },
 };
 
 const PAYMENT_CONFIG = {
-  cash:            { label: "Cash",            icon: Banknote,  color: "text-amber-600" },
-  qris:            { label: "QRIS",            icon: QrCode,    color: "text-violet-600" },
-  virtual_account: { label: "Virtual Account", icon: Building2, color: "text-blue-600"   },
+  cash:     { label: "Cash", icon: Banknote, color: "text-amber-600" },
+  qris:     { label: "QRIS", icon: QrCode, color: "text-violet-600" },
+  transfer: { label: "Transfer Bank", icon: Building2, color: "text-blue-600" },
 };
 
 function formatDate(iso) {
+  if (!iso) return "-";
   const d = new Date(iso);
   return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) +
     " · " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 }
 
-function OrderRow({ order, onConfirm, onCancel }) {
+function OrderRow({ order, onConfirm, onCancel, onDelete, isUpdating }) {
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
-  const status = STATUS_CONFIG[order.status];
-  const payment = PAYMENT_CONFIG[order.paymentMethod];
+  const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+  const payment = PAYMENT_CONFIG[order.paymentMethod] || PAYMENT_CONFIG.cash;
   const PayIcon = payment.icon;
   const isCash = order.paymentMethod === "cash";
   const isPending = order.status === "pending";
+  const isCancelled = order.status === "cancelled";
+  const studentName = order.user?.username || "Unknown";
 
   return (
     <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all duration-200 ${expanded ? "border-violet-200" : "border-gray-100"}`}>
-      {/* Main Row */}
       <div
         className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setExpanded((v) => !v)}
@@ -138,12 +48,11 @@ function OrderRow({ order, onConfirm, onCancel }) {
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-bold text-gray-900">{order.id}</span>
+            <span className="text-sm font-bold text-gray-900">{order._id?.slice(-8).toUpperCase()}</span>
             <span className="text-xs text-gray-400">·</span>
-            <span className="text-sm text-gray-600">{order.studentName}</span>
-            <span className="text-xs text-gray-400 hidden sm:inline">{order.studentClass}</span>
+            <span className="text-sm text-gray-600">{studentName}</span>
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">{formatDate(order.date)}</div>
+          <div className="text-xs text-gray-400 mt-0.5">{formatDate(order.createdAt)}</div>
         </div>
 
         <div className={`hidden sm:flex items-center gap-1.5 ${payment.color}`}>
@@ -158,18 +67,17 @@ function OrderRow({ order, onConfirm, onCancel }) {
         )}
 
         <span className="text-sm font-bold text-violet-600 flex-shrink-0">
-          Rp {order.total.toLocaleString("id-ID")}
+          Rp {order.totalPrice?.toLocaleString("id-ID") || 0}
         </span>
 
         <span className={`hidden sm:inline text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${status.color}`}>
           {status.label}
         </span>
 
-        {/* View detail button */}
         <button
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/admin/orders/${order.id}`);
+            navigate(`/admin/orders/${order._id}`);
           }}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
         >
@@ -182,17 +90,15 @@ function OrderRow({ order, onConfirm, onCancel }) {
         </span>
       </div>
 
-      {/* Expanded Detail */}
       {expanded && (
         <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 flex flex-col gap-4">
-          {/* Items */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Item Pesanan</p>
             <div className="flex flex-col gap-1.5">
-              {order.items.map((item, i) => (
+              {order.items?.map((item, i) => (
                 <div key={i} className="flex justify-between text-sm">
                   <span className="text-gray-700">
-                    {item.name} <span className="text-gray-400">×{item.quantity}</span>
+                    {item.product?.name || "Product"} <span className="text-gray-400">×{item.quantity}</span>
                   </span>
                   <span className="font-semibold text-gray-800">
                     Rp {(item.price * item.quantity).toLocaleString("id-ID")}
@@ -201,12 +107,11 @@ function OrderRow({ order, onConfirm, onCancel }) {
               ))}
               <div className="border-t border-gray-200 pt-1.5 mt-1 flex justify-between text-sm font-bold">
                 <span className="text-gray-700">Total</span>
-                <span className="text-violet-600">Rp {order.total.toLocaleString("id-ID")}</span>
+                <span className="text-violet-600">Rp {order.totalPrice?.toLocaleString("id-ID") || 0}</span>
               </div>
             </div>
           </div>
 
-          {/* Payment info */}
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <PayIcon className={`w-4 h-4 ${payment.color}`} />
             <span>
@@ -220,19 +125,20 @@ function OrderRow({ order, onConfirm, onCancel }) {
             </span>
           </div>
 
-          {/* Action buttons */}
           {isPending && (
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => onConfirm(order.id)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors shadow-sm"
+                onClick={() => onConfirm(order._id)}
+                disabled={isUpdating}
+                className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <CheckCircle className="w-4 h-4" />
+                {isUpdating ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                 {isCash ? "Konfirmasi Pembayaran Tunai" : "Konfirmasi Pesanan"}
               </button>
               <button
-                onClick={() => onCancel(order.id)}
-                className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-500 text-sm font-semibold rounded-xl hover:bg-red-50 transition-colors"
+                onClick={() => onCancel(order._id)}
+                disabled={isUpdating}
+                className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-500 text-sm font-semibold rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <XCircle className="w-4 h-4" />
                 Batalkan Pesanan
@@ -240,24 +146,33 @@ function OrderRow({ order, onConfirm, onCancel }) {
             </div>
           )}
 
-          {/* Status messages */}
-          {order.status === "confirmed" && (
+          {isCancelled && (
+            <button
+              onClick={() => onDelete(order._id)}
+              disabled={isUpdating}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUpdating ? <Loader className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Hapus Pesanan
+            </button>
+          )}
+
+          {order.status === "paid" && (
             <div className="flex items-center gap-2 text-sm text-green-600 font-semibold">
               <CheckCircle className="w-4 h-4" />
               Pesanan telah dikonfirmasi
             </div>
           )}
-          {order.status === "cancelled" && (
+          {isCancelled && (
             <div className="flex items-center gap-2 text-sm text-red-500 font-semibold">
               <XCircle className="w-4 h-4" />
               Pesanan dibatalkan
             </div>
           )}
 
-          {/* Link to detail page */}
           <div className="pt-2">
             <Link
-              to={`/admin/orders/${order.id}`}
+              to={`/admin/orders/${order._id}`}
               className="inline-flex items-center gap-2 text-sm text-violet-600 font-semibold hover:text-violet-700"
             >
               <Eye className="w-4 h-4" />
@@ -274,22 +189,72 @@ function OrderRow({ order, onConfirm, onCancel }) {
 function AdminOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, isKasir } = useAuth(); // ADDED: auth check
-  const [order, setOrder] = useState(() => {
-    const found = initialOrders.find(o => o.id === id);
-    return found || null;
-  });
+  const { isAuthenticated, isKasir } = useAuth();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
-  // ADDED: Redirect if not kasir
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/auth");
     } else if (!isKasir) {
       navigate("/");
+    } else {
+      fetchOrderDetail();
     }
-  }, [isAuthenticated, isKasir, navigate]);
+  }, [isAuthenticated, isKasir, navigate, id]);
+
+  const fetchOrderDetail = async () => {
+    try {
+      setLoading(true);
+      const response = await paymentService.getKasirOrders();
+      const foundOrder = response.data.find(o => o._id === id);
+      setOrder(foundOrder || null);
+    } catch (err) {
+      console.error("Failed to fetch order:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!order) return;
+    setUpdating(true);
+    try {
+      await paymentService.confirmCashPayment(order._id, "paid");
+      await fetchOrderDetail();
+    } catch (err) {
+      console.error("Failed to confirm order:", err);
+      alert(err.response?.data?.message || "Gagal mengkonfirmasi pesanan");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!order) return;
+    if (!window.confirm("Apakah Anda yakin ingin membatalkan pesanan ini?")) return;
+    setUpdating(true);
+    try {
+      await paymentService.confirmCashPayment(order._id, "cancelled");
+      await fetchOrderDetail();
+    } catch (err) {
+      console.error("Failed to cancel order:", err);
+      alert(err.response?.data?.message || "Gagal membatalkan pesanan");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   if (!isAuthenticated || !isKasir) return null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader className="w-8 h-8 text-violet-600 animate-spin" />
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -304,24 +269,15 @@ function AdminOrderDetail() {
     );
   }
 
-  const status = STATUS_CONFIG[order.status];
-  const payment = PAYMENT_CONFIG[order.paymentMethod];
+  const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+  const payment = PAYMENT_CONFIG[order.paymentMethod] || PAYMENT_CONFIG.cash;
   const PayIcon = payment.icon;
   const isCash = order.paymentMethod === "cash";
   const isPending = order.status === "pending";
 
-  const handleConfirm = () => {
-    setOrder({ ...order, status: "confirmed" });
-  };
-
-  const handleCancel = () => {
-    setOrder({ ...order, status: "cancelled" });
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-6">
       <div className="max-w-3xl mx-auto">
-        {/* Back button */}
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6"
@@ -331,12 +287,11 @@ function AdminOrderDetail() {
         </button>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* Header */}
           <div className="p-6 border-b border-gray-200">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{order.id}</h1>
-                <p className="text-gray-500 mt-1">{order.studentName} · {order.studentClass}</p>
+                <h1 className="text-2xl font-bold text-gray-900">Order #{order._id?.slice(-8).toUpperCase()}</h1>
+                <p className="text-gray-500 mt-1">{order.user?.username}</p>
               </div>
               <span className={`px-3 py-1 rounded-full text-sm font-semibold ${status.color}`}>
                 {status.label}
@@ -344,22 +299,19 @@ function AdminOrderDetail() {
             </div>
           </div>
 
-          {/* Content */}
           <div className="p-6 space-y-6">
-            {/* Date */}
             <div>
               <p className="text-sm text-gray-500">Tanggal Pesanan</p>
-              <p className="font-medium text-gray-900">{formatDate(order.date)}</p>
+              <p className="font-medium text-gray-900">{formatDate(order.createdAt)}</p>
             </div>
 
-            {/* Items */}
             <div>
               <p className="text-sm text-gray-500 mb-3">Item Pesanan</p>
               <div className="space-y-2">
-                {order.items.map((item, i) => (
+                {order.items?.map((item, i) => (
                   <div key={i} className="flex justify-between py-2 border-b border-gray-100">
                     <span className="text-gray-700">
-                      {item.name} <span className="text-gray-400">×{item.quantity}</span>
+                      {item.product?.name || "Product"} <span className="text-gray-400">×{item.quantity}</span>
                     </span>
                     <span className="font-semibold text-gray-800">
                       Rp {(item.price * item.quantity).toLocaleString("id-ID")}
@@ -368,12 +320,11 @@ function AdminOrderDetail() {
                 ))}
                 <div className="flex justify-between pt-2">
                   <span className="font-bold text-gray-900">Total</span>
-                  <span className="font-bold text-violet-600">Rp {order.total.toLocaleString("id-ID")}</span>
+                  <span className="font-bold text-violet-600">Rp {order.totalPrice?.toLocaleString("id-ID") || 0}</span>
                 </div>
               </div>
             </div>
 
-            {/* Payment Info */}
             <div>
               <p className="text-sm text-gray-500 mb-2">Metode Pembayaran</p>
               <div className={`flex items-center gap-2 p-3 bg-gray-50 rounded-xl ${payment.color}`}>
@@ -388,19 +339,20 @@ function AdminOrderDetail() {
               </div>
             </div>
 
-            {/* Actions */}
-            {isPending && (
+            {isPending && isCash && (
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleConfirm}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors"
+                  disabled={updating}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
-                  <CheckCircle className="w-4 h-4" />
-                  {isCash ? "Konfirmasi Pembayaran Tunai" : "Konfirmasi Pesanan"}
+                  {updating ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                  Konfirmasi Pembayaran Tunai
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-red-200 text-red-600 font-semibold rounded-xl hover:bg-red-50 transition-colors"
+                  disabled={updating}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-red-200 text-red-600 font-semibold rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
                 >
                   <XCircle className="w-4 h-4" />
                   Batalkan Pesanan
@@ -416,39 +368,89 @@ function AdminOrderDetail() {
 
 // Main Admin Orders Component
 function AdminOrders() {
-  const { isAuthenticated, isKasir } = useAuth(); // CHANGED: use correct auth properties
+  const { isAuthenticated, isKasir } = useAuth();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPayment, setFilterPayment] = useState("all");
+  const [updatingId, setUpdatingId] = useState(null);
 
-  // ADDED: Redirect if not kasir
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/auth");
     } else if (!isKasir) {
       navigate("/");
+    } else {
+      fetchOrders();
     }
   }, [isAuthenticated, isKasir, navigate]);
 
-  const handleConfirm = (id) => {
-    setOrders((prev) =>
-      prev.map((o) => o.id === id ? { ...o, status: "confirmed" } : o)
-    );
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await paymentService.getKasirOrders(filterStatus === "all" ? null : filterStatus, filterPayment === "all" ? null : filterPayment);
+      setOrders(response.data);
+    } catch (err) {
+      console.error("Failed to fetch orders:", err);
+      alert(err.response?.data?.message || "Gagal memuat pesanan");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCancel = (id) => {
-    setOrders((prev) =>
-      prev.map((o) => o.id === id ? { ...o, status: "cancelled" } : o)
-    );
+  useEffect(() => {
+    if (isAuthenticated && isKasir) {
+      fetchOrders();
+    }
+  }, [filterStatus, filterPayment]);
+
+  const handleConfirm = async (id) => {
+    setUpdatingId(id);
+    try {
+      await paymentService.confirmCashPayment(id, "paid");
+      await fetchOrders();
+    } catch (err) {
+      console.error("Failed to confirm order:", err);
+      alert(err.response?.data?.message || "Gagal mengkonfirmasi pesanan");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleCancel = async (id) => {
+    if (!window.confirm("Apakah Anda yakin ingin membatalkan pesanan ini?")) return;
+    setUpdatingId(id);
+    try {
+      await paymentService.confirmCashPayment(id, "cancelled");
+      await fetchOrders();
+    } catch (err) {
+      console.error("Failed to cancel order:", err);
+      alert(err.response?.data?.message || "Gagal membatalkan pesanan");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus pesanan ini? Tindakan ini tidak dapat dibatalkan.")) return;
+    setUpdatingId(id);
+    try {
+      await paymentService.deleteOrder(id);
+      await fetchOrders();
+      alert("Pesanan berhasil dihapus");
+    } catch (err) {
+      console.error("Failed to delete order:", err);
+      alert(err.response?.data?.message || "Gagal menghapus pesanan");
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const filtered = orders.filter((o) => {
-    const matchSearch =
-      o.id.toLowerCase().includes(search.toLowerCase()) ||
-      o.studentName.toLowerCase().includes(search.toLowerCase()) ||
-      o.studentClass.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = o._id.toLowerCase().includes(search.toLowerCase()) ||
+                       (o.user?.username || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === "all" || o.status === filterStatus;
     const matchPayment = filterPayment === "all" || o.paymentMethod === filterPayment;
     return matchSearch && matchStatus && matchPayment;
@@ -457,26 +459,29 @@ function AdminOrders() {
   const counts = {
     all: orders.length,
     pending: orders.filter((o) => o.status === "pending").length,
-    confirmed: orders.filter((o) => o.status === "confirmed").length,
+    paid: orders.filter((o) => o.status === "paid").length,
     cancelled: orders.filter((o) => o.status === "cancelled").length,
   };
 
   const cashPending = orders.filter((o) => o.paymentMethod === "cash" && o.status === "pending").length;
 
-  // ADDED: Check if not authenticated or not kasir
   if (!isAuthenticated || !isKasir) return null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader className="w-8 h-8 text-violet-600 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <div className="max-w-5xl mx-auto px-6 py-10 flex flex-col gap-6">
-        {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Link 
-                to="/admin" 
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
+              <Link to="/admin" className="text-gray-400 hover:text-gray-600 transition-colors">
                 Dashboard
               </Link>
               <span className="text-gray-300">/</span>
@@ -496,12 +501,11 @@ function AdminOrders() {
           )}
         </div>
 
-        {/* Status Filter Tabs */}
         <div className="flex gap-2 flex-wrap border-b border-gray-200 pb-4">
           {[
             { key: "all", label: "Semua", count: counts.all },
             { key: "pending", label: "Menunggu", count: counts.pending },
-            { key: "confirmed", label: "Dikonfirmasi", count: counts.confirmed },
+            { key: "paid", label: "Dikonfirmasi", count: counts.paid },
             { key: "cancelled", label: "Dibatalkan", count: counts.cancelled },
           ].map(({ key, label, count }) => (
             <button
@@ -518,7 +522,6 @@ function AdminOrders() {
           ))}
         </div>
 
-        {/* Search & Payment Filter */}
         <div className="flex gap-3 flex-wrap">
           <div className="relative flex-1 min-w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -538,11 +541,10 @@ function AdminOrders() {
             <option value="all">Semua Pembayaran</option>
             <option value="cash">Cash (Konfirmasi Manual)</option>
             <option value="qris">QRIS (Xendit)</option>
-            <option value="virtual_account">Virtual Account (Xendit)</option>
+            <option value="transfer">Transfer Bank</option>
           </select>
         </div>
 
-        {/* Orders List */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-3">
             <p className="text-4xl">📋</p>
@@ -552,10 +554,12 @@ function AdminOrders() {
           <div className="flex flex-col gap-3">
             {filtered.map((order) => (
               <OrderRow
-                key={order.id}
+                key={order._id}
                 order={order}
                 onConfirm={handleConfirm}
                 onCancel={handleCancel}
+                onDelete={handleDelete}
+                isUpdating={updatingId === order._id}
               />
             ))}
           </div>

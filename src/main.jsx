@@ -17,9 +17,13 @@ import AdminStatistics from "./pages/admin/AdminStatistics.jsx";
 import AdminOrders, { AdminOrderDetail } from "./pages/admin/AdminOrders.jsx";
 import Checkout from "./pages/Checkout.jsx"
 import OrderSuccess from "./pages/orders/OrderSuccess.jsx";
+import OrderFailed from "./pages/orders/OrderFailed.jsx";
 import OrderPending from "./pages/orders/OrderPending.jsx";
+import OrderDetail from "./pages/orders/OrderDetail.jsx";
 import OrderQR from "./pages/orders/OrderQR.jsx";
 import OrderVA from "./pages/orders/OrderVA.jsx";
+import NotFound from "./pages/NotFound.jsx";
+
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -32,8 +36,15 @@ createRoot(document.getElementById('root')).render(
           {/* Public order pages */}
           <Route path="/orders/success" element={<OrderSuccess />} />
           <Route path="/orders/pending" element={<OrderPending />} />
+          <Route path="/orders/failed" element={<OrderFailed />} />
           <Route path="/orders/qr" element={<OrderQR />} />
           <Route path="/orders/va" element={<OrderVA />} />
+
+          <Route path="/orders/:id" element={
+            <ProtectedRoute>
+              <OrderDetail />
+            </ProtectedRoute>
+          } />
           
           {/* Admin routes - MUST be outside Layout to avoid conflicts */}
           <Route path="/admin" element={
@@ -82,6 +93,8 @@ createRoot(document.getElementById('root')).render(
               </ProtectedRoute>
             } />
           </Route>
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

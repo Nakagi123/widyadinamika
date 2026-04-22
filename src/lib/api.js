@@ -110,13 +110,16 @@ export const cartService = {
 export const paymentService = {
   checkout: (items, paymentMethod) => api.post('/payment/checkout', { items, paymentMethod }),
   getMyOrders: () => api.get('/payment/orders'),
-  getKasirOrders: (status = null) => {
-    const params = status ? { status } : {};
+  getKasirOrders: (status = null, paymentMethod = null) => {
+    const params = {};
+    if (status) params.status = status;
+    if (paymentMethod) params.paymentMethod = paymentMethod;
     return api.get('/payment/kasir/orders', { params });
   },
   confirmCashPayment: (orderId, status) => api.patch(`/payment/kasir/confirm/${orderId}`, { status }),
+  checkPaymentStatus: (orderId) => api.get(`/payment/check-status/${orderId}`),
+  deleteOrder: (orderId) => api.delete(`/payment/order/${orderId}`),
 };
-
 // ==================== HELPER UTILITIES ====================
 export const formatCurrency = (amount) => {
   return new Intl.NumberFormat('id-ID', {
