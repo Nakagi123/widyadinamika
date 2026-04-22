@@ -11,7 +11,7 @@ function OrderPending() {
   const location = useLocation();
 
   const order = location.state;
-  const [timeLeft, setTimeLeft] = useState(3600); // 1 hour
+  const [timeLeft, setTimeLeft] = useState(3600);
   const [isExpired, setIsExpired] = useState(false);
   const pollRef = useRef(null);
   const timerRef = useRef(null);

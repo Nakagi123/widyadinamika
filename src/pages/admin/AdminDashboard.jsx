@@ -1,18 +1,9 @@
-import { useEffect } from "react";
+// AdminDashboard.jsx
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { Package, ShoppingBag, BadgeDollarSign, AlertTriangle, ChevronRight, BarChart2, ClipboardList, Home } from "lucide-react";
-
-const stats = {
-  totalProducts: 24,
-  totalOrders: 138,
-  totalRevenue: 2750000,
-  lowStock: [
-    { id: 1, name: "Seragam Putih", stock: 2 },
-    { id: 2, name: "Buku Tulis", stock: 3 },
-    { id: 3, name: "Pensil 2B", stock: 4 },
-  ],
-};
+import { paymentService, productService } from "../../lib/api";
+import { Package, ShoppingBag, BadgeDollarSign, AlertTriangle, ChevronRight, BarChart2, ClipboardList, Home, Loader } from "lucide-react";
 
 function StatCard({ icon, label, value, color }) {
   return (
@@ -31,21 +22,107 @@ function StatCard({ icon, label, value, color }) {
 function AdminDashboard() {
   const { isAuthenticated, isKasir, user } = useAuth();
   const navigate = useNavigate();
+  const [dashboardData, setDashboardData] = useState({
+    totalProducts: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    lowStock: [],
+    recentOrders: []
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log("AdminDashboard - isAuthenticated:", isAuthenticated);
-    console.log("AdminDashboard - isKasir:", isKasir);
-    console.log("AdminDashboard - user role:", user?.role);
-    
-    // Redirect if not authenticated or not kasir
     if (!isAuthenticated) {
       navigate("/auth");
     } else if (!isKasir) {
       navigate("/");
+    } else {
+      fetchDashboardData();
     }
-  }, [isAuthenticated, isKasir, navigate, user]);
+  }, [isAuthenticated, isKasir, navigate]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch products and orders in parallel
+      const [productsRes, ordersRes] = await Promise.all([
+        productService.getAllProducts(),
+        paymentService.getKasirOrders()
+      ]);
+      
+      const products = productsRes.data;
+      const orders = ordersRes.data;
+      
+      // Calculate total products
+      const totalProducts = products.length;
+      
+      // Calculate total orders and revenue from paid orders
+      const paidOrders = orders.filter(o => o.status === "paid");
+      const totalOrders = paidOrders.length;
+      const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+      
+      // Find low stock products (stock < 10)
+      const lowStock = products
+        .filter(p => p.stock < 10 && p.stock > 0)
+        .map(p => ({ id: p._id, name: p.name, stock: p.stock }))
+        .slice(0, 5);
+      
+      // Get recent orders (last 5)
+      const recentOrders = orders
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 5)
+        .map(o => ({
+          id: o._id,
+          orderId: o._id?.slice(-8).toUpperCase(),
+          customerName: o.user?.username || "Unknown",
+          total: o.totalPrice || 0,
+          status: o.status,
+          paymentMethod: o.paymentMethod
+        }));
+      
+      setDashboardData({
+        totalProducts,
+        totalOrders,
+        totalRevenue,
+        lowStock,
+        recentOrders
+      });
+      
+    } catch (err) {
+      console.error("Failed to fetch dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch(status) {
+      case 'paid': return 'Dikonfirmasi';
+      case 'pending': return 'Menunggu';
+      case 'cancelled': return 'Dibatalkan';
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'paid': return 'bg-green-100 text-green-700';
+      case 'pending': return 'bg-yellow-100 text-yellow-700';
+      case 'cancelled': return 'bg-red-100 text-red-600';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
 
   if (!isAuthenticated || !isKasir) return null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader className="w-8 h-8 text-violet-600 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -73,19 +150,19 @@ function AdminDashboard() {
           <StatCard
             icon={<Package className="w-6 h-6 text-violet-600" />}
             label="Total Produk"
-            value={stats.totalProducts}
+            value={dashboardData.totalProducts}
             color="bg-violet-100"
           />
           <StatCard
             icon={<ShoppingBag className="w-6 h-6 text-blue-600" />}
-            label="Total Pesanan"
-            value={stats.totalOrders}
+            label="Total Pesanan Selesai"
+            value={dashboardData.totalOrders}
             color="bg-blue-100"
           />
           <StatCard
             icon={<BadgeDollarSign className="w-6 h-6 text-green-600" />}
             label="Total Pendapatan"
-            value={`Rp ${stats.totalRevenue.toLocaleString("id-ID")}`}
+            value={`Rp ${dashboardData.totalRevenue.toLocaleString("id-ID")}`}
             color="bg-green-100"
           />
         </div>
@@ -97,11 +174,11 @@ function AdminDashboard() {
             <h2 className="text-lg font-bold text-gray-900">Stok Menipis</h2>
           </div>
 
-          {stats.lowStock.length === 0 ? (
-            <p className="text-sm text-gray-400">Semua stok aman.</p>
+          {dashboardData.lowStock.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">✅ Semua stok aman.</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {stats.lowStock.map((item) => (
+              {dashboardData.lowStock.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between px-4 py-3 bg-yellow-50 border border-yellow-100 rounded-xl"
@@ -168,7 +245,7 @@ function AdminDashboard() {
           </Link>
         </div>
 
-        {/* Optional: Recent Orders Section */}
+        {/* Recent Orders Section */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900">Pesanan Terbaru</h2>
@@ -181,42 +258,34 @@ function AdminDashboard() {
             </Link>
           </div>
           
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <div>
-                <p className="font-medium text-gray-900">ORD-007</p>
-                <p className="text-sm text-gray-500">Fajar Nugroho</p>
-              </div>
-              <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">Menunggu</span>
-              <Link 
-                to="/admin/orders/ORD-007"
-                className="text-violet-600 hover:text-violet-700 text-sm"
-              >
-                Detail →
-              </Link>
+          {dashboardData.recentOrders.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">Belum ada pesanan</p>
+          ) : (
+            <div className="space-y-3">
+              {dashboardData.recentOrders.map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div>
+                    <p className="font-medium text-gray-900">{order.orderId}</p>
+                    <p className="text-sm text-gray-500">{order.customerName}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-violet-600">
+                      Rp {order.total.toLocaleString("id-ID")}
+                    </span>
+                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(order.status)}`}>
+                      {getStatusLabel(order.status)}
+                    </span>
+                    <Link 
+                      to={`/admin/orders/${order.id}`}
+                      className="text-violet-600 hover:text-violet-700 text-sm"
+                    >
+                      Detail →
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
-            
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <div>
-                <p className="font-medium text-gray-900">ORD-006</p>
-                <p className="text-sm text-gray-500">Maya Indah</p>
-              </div>
-              <span className="px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full">Dibatalkan</span>
-              <Link 
-                to="/admin/orders/ORD-006"
-                className="text-violet-600 hover:text-violet-700 text-sm"
-              >
-                Detail →
-              </Link>
-            </div>
-            
-            <Link 
-              to="/admin/orders"
-              className="block text-center text-violet-600 hover:text-violet-700 text-sm font-medium pt-2"
-            >
-              Kelola semua pesanan →
-            </Link>
-          </div>
+          )}
         </div>
 
       </div>

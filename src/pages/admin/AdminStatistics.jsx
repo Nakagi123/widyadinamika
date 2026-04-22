@@ -1,38 +1,13 @@
-// AdminStatistics.jsx
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { paymentService, productService } from "../../lib/api";
+import * as XLSX from 'xlsx';
 import { 
   TrendingUp, TrendingDown, Package, ShoppingBag, 
-  BadgeDollarSign, Users, Calendar, ArrowUp, ArrowDown,
-  BarChart2, PieChart, Download, Filter, DollarSign
+  BadgeDollarSign, Calendar, ArrowUp, ArrowDown,
+  BarChart2, PieChart, RefreshCcw, Loader, FileSpreadsheet
 } from "lucide-react";
-
-// Mock data for statistics
-const mockOrders = [
-  { id: "ORD-001", date: "2025-04-14", total: 25000, status: "confirmed", paymentMethod: "cash" },
-  { id: "ORD-002", date: "2025-04-14", total: 12000, status: "confirmed", paymentMethod: "qris" },
-  { id: "ORD-003", date: "2025-04-14", total: 93000, status: "confirmed", paymentMethod: "virtual_account" },
-  { id: "ORD-004", date: "2025-04-13", total: 18000, status: "confirmed", paymentMethod: "cash" },
-  { id: "ORD-005", date: "2025-04-13", total: 9000, status: "confirmed", paymentMethod: "qris" },
-  { id: "ORD-006", date: "2025-04-12", total: 85000, status: "cancelled", paymentMethod: "virtual_account" },
-  { id: "ORD-007", date: "2025-04-14", total: 22000, status: "pending", paymentMethod: "cash" },
-  { id: "ORD-008", date: "2025-04-11", total: 45000, status: "confirmed", paymentMethod: "qris" },
-  { id: "ORD-009", date: "2025-04-10", total: 67000, status: "confirmed", paymentMethod: "cash" },
-  { id: "ORD-010", date: "2025-04-09", total: 33000, status: "confirmed", paymentMethod: "virtual_account" },
-  { id: "ORD-011", date: "2025-04-08", total: 28000, status: "confirmed", paymentMethod: "cash" },
-  { id: "ORD-012", date: "2025-04-07", total: 51000, status: "confirmed", paymentMethod: "qris" },
-];
-
-const mockProducts = [
-  { id: 1, name: "Seragam Putih", price: 85000, sold: 45, revenue: 3825000, category: "Seragam" },
-  { id: 2, name: "Buku Tulis", price: 8000, sold: 128, revenue: 1024000, category: "Alat Tulis" },
-  { id: 3, name: "Pensil 2B", price: 3000, sold: 256, revenue: 768000, category: "Alat Tulis" },
-  { id: 4, name: "Nasi Goreng", price: 10000, sold: 89, revenue: 890000, category: "Makanan" },
-  { id: 5, name: "Mie Goreng", price: 12000, sold: 76, revenue: 912000, category: "Makanan" },
-  { id: 6, name: "Es Teh Manis", price: 5000, sold: 234, revenue: 1170000, category: "Minuman" },
-  { id: 7, name: "Air Mineral", price: 4000, sold: 198, revenue: 792000, category: "Minuman" },
-];
 
 function StatCard({ title, value, change, icon, color }) {
   const isPositive = change >= 0;
@@ -56,7 +31,7 @@ function StatCard({ title, value, change, icon, color }) {
 }
 
 function SalesChart({ data }) {
-  const maxValue = Math.max(...data.map(d => d.value));
+  const maxValue = Math.max(...data.map(d => d.value), 1);
   
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -87,73 +62,64 @@ function SalesChart({ data }) {
   );
 }
 
-function CategoryPieChart({ categories }) {
-  const total = categories.reduce((sum, cat) => sum + cat.value, 0);
-  const colors = ['bg-violet-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500'];
-  
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900">Penjualan per Kategori</h3>
-          <p className="text-sm text-gray-400 mt-1">Distribusi berdasarkan kategori</p>
-        </div>
-        <PieChart className="w-5 h-5 text-gray-400" />
-      </div>
-      
-      <div className="space-y-4">
-        {categories.map((category, index) => {
-          const percentage = (category.value / total) * 100;
-          return (
-            <div key={category.name}>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-700">{category.name}</span>
-                <span className="font-semibold text-gray-900">
-                  Rp {category.value.toLocaleString("id-ID")}
-                </span>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                <div 
-                  className={`${colors[index % colors.length]} h-2 rounded-full transition-all duration-500`}
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">{percentage.toFixed(1)}%</p>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function TopProducts({ products }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
       <h3 className="text-lg font-bold text-gray-900 mb-4">Produk Terlaris</h3>
       <div className="space-y-3">
-        {products.slice(0, 5).map((product, index) => (
-          <div key={product.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-            <div className="flex items-center gap-3">
-              <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-600 text-xs font-bold flex items-center justify-center">
-                {index + 1}
-              </span>
-              <div>
-                <p className="font-semibold text-gray-900">{product.name}</p>
-                <p className="text-xs text-gray-400">Terjual {product.sold} pcs</p>
+        {products.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">Belum ada data produk</p>
+        ) : (
+          products.slice(0, 5).map((product, index) => (
+            <div key={product._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-600 text-xs font-bold flex items-center justify-center">
+                  {index + 1}
+                </span>
+                <div>
+                  <p className="font-semibold text-gray-900">{product.name}</p>
+                  <p className="text-xs text-gray-400">Terjual {product.sold || 0} pcs</p>
+                </div>
               </div>
+              <p className="font-bold text-violet-600">
+                Rp {(product.revenue || 0).toLocaleString("id-ID")}
+              </p>
             </div>
-            <p className="font-bold text-violet-600">
-              Rp {product.revenue.toLocaleString("id-ID")}
-            </p>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
 }
 
 function RecentOrdersTable({ orders }) {
+  const getStatusLabel = (status) => {
+    switch(status) {
+      case 'paid': return 'Dikonfirmasi';
+      case 'pending': return 'Menunggu';
+      case 'cancelled': return 'Dibatalkan';
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'paid': return 'bg-green-100 text-green-700';
+      case 'pending': return 'bg-yellow-100 text-yellow-700';
+      case 'cancelled': return 'bg-red-100 text-red-600';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  const getPaymentLabel = (method) => {
+    switch(method) {
+      case 'cash': return 'Cash';
+      case 'qris': return 'QRIS';
+      case 'transfer': return 'Transfer Bank';
+      default: return method;
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
       <h3 className="text-lg font-bold text-gray-900 mb-4">Pesanan Terbaru</h3>
@@ -169,26 +135,35 @@ function RecentOrdersTable({ orders }) {
             </tr>
           </thead>
           <tbody>
-            {orders.slice(0, 5).map((order) => (
-              <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                <td className="py-3 px-2 text-sm font-medium text-gray-900">{order.id}</td>
-                <td className="py-3 px-2 text-sm text-gray-600">{order.date}</td>
-                <td className="py-3 px-2 text-sm font-semibold text-violet-600">
-                  Rp {order.total.toLocaleString("id-ID")}
+            {orders.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="text-center py-8 text-gray-400">
+                  Belum ada pesanan
                 </td>
-                <td className="py-3 px-2">
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                    order.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                    order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-600'
-                  }`}>
-                    {order.status === 'confirmed' ? 'Dikonfirmasi' :
-                     order.status === 'pending' ? 'Menunggu' : 'Dibatalkan'}
-                  </span>
-                </td>
-                <td className="py-3 px-2 text-sm text-gray-600">{order.paymentMethod}</td>
               </tr>
-            ))}
+            ) : (
+              orders.slice(0, 5).map((order) => (
+                <tr key={order._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <td className="py-3 px-2 text-sm font-medium text-gray-900">
+                    {order._id?.slice(-8).toUpperCase()}
+                  </td>
+                  <td className="py-3 px-2 text-sm text-gray-600">
+                    {new Date(order.createdAt).toLocaleDateString('id-ID')}
+                  </td>
+                  <td className="py-3 px-2 text-sm font-semibold text-violet-600">
+                    Rp {order.totalPrice?.toLocaleString("id-ID") || 0}
+                  </td>
+                  <td className="py-3 px-2">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(order.status)}`}>
+                      {getStatusLabel(order.status)}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 text-sm text-gray-600">
+                    {getPaymentLabel(order.paymentMethod)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -196,92 +171,201 @@ function RecentOrdersTable({ orders }) {
   );
 }
 
-function DateRangeFilter({ dateRange, setDateRange }) {
-  const [showCustom, setShowCustom] = useState(false);
-  
-  const presets = [
-    { label: "7 Hari Terakhir", days: 7 },
-    { label: "30 Hari Terakhir", days: 30 },
-    { label: "Bulan Ini", days: 'month' },
-    { label: "Tahun Ini", days: 'year' },
-  ];
-  
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setShowCustom(!showCustom)}
-        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        <Calendar className="w-4 h-4" />
-        {dateRange.label}
-      </button>
-      
-      {showCustom && (
-        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-10">
-          {presets.map(preset => (
-            <button
-              key={preset.label}
-              onClick={() => {
-                setDateRange({ ...dateRange, label: preset.label });
-                setShowCustom(false);
-              }}
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function AdminStatistics() {
-  const { isAuthenticated, isKasir } = useAuth(); // CHANGED: use correct auth properties
+  const { isAuthenticated, isKasir } = useAuth();
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState({ label: "7 Hari Terakhir", days: 7 });
-  
-  // ADDED: Redirect if not kasir
+  const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/auth");
     } else if (!isKasir) {
       navigate("/");
+    } else {
+      fetchData();
     }
   }, [isAuthenticated, isKasir, navigate]);
-  
-  // Calculate statistics
-  const confirmedOrders = mockOrders.filter(o => o.status === "confirmed");
-  const totalRevenue = confirmedOrders.reduce((sum, o) => sum + o.total, 0);
-  const totalOrders = confirmedOrders.length;
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [ordersRes, productsRes] = await Promise.all([
+        paymentService.getKasirOrders(),
+        productService.getAllProducts()
+      ]);
+      setOrders(ordersRes.data);
+      setProducts(productsRes.data);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch statistics data:", err);
+      setError(err.message || "Gagal memuat data statistik");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Export to Excel function
+  const exportToExcel = () => {
+    // Prepare orders data for export
+    const exportData = orders.map(order => ({
+      'ID Pesanan': order._id?.slice(-8).toUpperCase(),
+      'Tanggal': new Date(order.createdAt).toLocaleDateString('id-ID'),
+      'Waktu': new Date(order.createdAt).toLocaleTimeString('id-ID'),
+      'Pelanggan': order.user?.username || 'Unknown',
+      'Total': order.totalPrice || 0,
+      'Status': order.status === 'paid' ? 'Dikonfirmasi' : 
+                order.status === 'pending' ? 'Menunggu' : 'Dibatalkan',
+      'Metode Pembayaran': order.paymentMethod === 'cash' ? 'Cash' :
+                           order.paymentMethod === 'qris' ? 'QRIS' : 'Transfer Bank',
+      'Jumlah Item': order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0
+    }));
+
+    // Calculate summary data
+    const paidOrders = orders.filter(o => o.status === "paid");
+    const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+    
+    const summaryData = [
+      { 'Ringkasan': 'Total Pendapatan', 'Nilai': `Rp ${totalRevenue.toLocaleString('id-ID')}` },
+      { 'Ringkasan': 'Total Pesanan Selesai', 'Nilai': paidOrders.length },
+      { 'Ringkasan': 'Total Produk Terjual', 'Nilai': paidOrders.reduce((sum, o) => {
+        return sum + (o.items?.reduce((itemSum, item) => itemSum + item.quantity, 0) || 0);
+      }, 0) },
+      { 'Ringkasan': 'Tanggal Export', 'Nilai': new Date().toLocaleString('id-ID') }
+    ];
+
+    // Create workbook with multiple sheets
+    const wb = XLSX.utils.book_new();
+    
+    // Sheet 1: Orders
+    const wsOrders = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(wb, wsOrders, 'Pesanan');
+    
+    // Sheet 2: Summary
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan');
+    
+    // Auto-size columns for orders sheet
+    const maxWidths = [];
+    exportData.forEach(row => {
+      Object.keys(row).forEach((key, idx) => {
+        const value = String(row[key] || '');
+        maxWidths[idx] = Math.max(maxWidths[idx] || 0, value.length, key.length);
+      });
+    });
+    wsOrders['!cols'] = maxWidths.map(w => ({ wch: Math.min(w + 2, 30) }));
+    
+    // Download file
+    XLSX.writeFile(wb, `statistik_penjualan_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // Calculate statistics from real data
+  const paidOrders = orders.filter(o => o.status === "paid");
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+  const totalOrders = paidOrders.length;
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-  
-  // Calculate daily sales for chart
-  const dailySales = [
-    { label: "Senin", value: 245000 },
-    { label: "Selasa", value: 189000 },
-    { label: "Rabu", value: 312000 },
-    { label: "Kamis", value: 278000 },
-    { label: "Jumat", value: 423000 },
-    { label: "Sabtu", value: 356000 },
-    { label: "Minggu", value: 198000 },
-  ];
-  
-  // Calculate category sales
-  const categorySales = [
-    { name: "Seragam", value: 3825000 },
-    { name: "Alat Tulis", value: 1792000 },
-    { name: "Makanan", value: 1802000 },
-    { name: "Minuman", value: 1962000 },
-  ];
-  
-  // Calculate growth (mock data)
+  const totalProductsSold = paidOrders.reduce((sum, o) => {
+    const itemsCount = o.items?.reduce((itemSum, item) => itemSum + item.quantity, 0) || 0;
+    return sum + itemsCount;
+  }, 0);
+
+  // Calculate daily sales for last 7 days
+  const getDailySales = () => {
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const dailyData = days.map(day => ({ label: day, value: 0 }));
+    
+    const last7Days = new Date();
+    last7Days.setDate(last7Days.getDate() - 7);
+    
+    paidOrders.forEach(order => {
+      const orderDate = new Date(order.createdAt);
+      if (orderDate >= last7Days) {
+        const dayName = days[orderDate.getDay()];
+        const dayIndex = dailyData.findIndex(d => d.label === dayName);
+        if (dayIndex !== -1) {
+          dailyData[dayIndex].value += order.totalPrice || 0;
+        }
+      }
+    });
+    
+    return dailyData;
+  };
+
+  // Calculate top selling products
+  const getTopProducts = () => {
+    const productSales = {};
+    
+    paidOrders.forEach(order => {
+      order.items?.forEach(item => {
+        const productId = item.product?._id || item.product;
+        const productName = item.product?.name || "Unknown";
+        const quantity = item.quantity;
+        const revenue = (item.price || 0) * quantity;
+        
+        if (!productSales[productId]) {
+          productSales[productId] = {
+            _id: productId,
+            name: productName,
+            sold: 0,
+            revenue: 0
+          };
+        }
+        productSales[productId].sold += quantity;
+        productSales[productId].revenue += revenue;
+      });
+    });
+    
+    return Object.values(productSales).sort((a, b) => b.revenue - a.revenue);
+  };
+
+  // Calculate payment method distribution
+  const getPaymentDistribution = () => {
+    const distribution = { cash: 0, qris: 0, transfer: 0 };
+    paidOrders.forEach(order => {
+      if (distribution[order.paymentMethod] !== undefined) {
+        distribution[order.paymentMethod] += order.totalPrice || 0;
+      }
+    });
+    return distribution;
+  };
+
+  const dailySales = getDailySales();
+  const topProducts = getTopProducts();
+  const paymentDistribution = getPaymentDistribution();
+  const totalPaymentRevenue = Object.values(paymentDistribution).reduce((a, b) => a + b, 0);
+
+  // Mock growth percentages (can be calculated from previous period if needed)
   const revenueGrowth = 23.5;
   const ordersGrowth = 15.2;
-  
-  // ADDED: Check if not authenticated or not kasir
+
   if (!isAuthenticated || !isKasir) return null;
-  
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader className="w-8 h-8 text-violet-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button
+            onClick={fetchData}
+            className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col gap-6">
@@ -303,11 +387,20 @@ function AdminStatistics() {
             <p className="text-gray-400 mt-1 text-sm">Lihat laporan dan analisis penjualan</p>
           </div>
           
-          <div className="flex items-center gap-3">
-            <DateRangeFilter dateRange={dateRange} setDateRange={setDateRange} />
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-              <Download className="w-4 h-4" />
-              Export
+          <div className="flex gap-3">
+            <button 
+              onClick={exportToExcel}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors shadow-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Export ke Excel
+            </button>
+            <button 
+              onClick={fetchData}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <RefreshCcw className="w-4 h-4" />
+              Refresh Data
             </button>
           </div>
         </div>
@@ -322,7 +415,7 @@ function AdminStatistics() {
             color="bg-green-100"
           />
           <StatCard
-            title="Total Pesanan"
+            title="Total Pesanan Selesai"
             value={totalOrders}
             change={ordersGrowth}
             icon={<ShoppingBag className="w-6 h-6 text-blue-600" />}
@@ -336,7 +429,7 @@ function AdminStatistics() {
           />
           <StatCard
             title="Total Produk Terjual"
-            value={mockProducts.reduce((sum, p) => sum + p.sold, 0)}
+            value={totalProductsSold}
             icon={<Package className="w-6 h-6 text-orange-600" />}
             color="bg-orange-100"
           />
@@ -345,63 +438,73 @@ function AdminStatistics() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <SalesChart data={dailySales} />
-          <CategoryPieChart categories={categorySales} />
+          <TopProducts products={topProducts} />
         </div>
         
-        {/* Second Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TopProducts products={mockProducts} />
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Ringkasan Pembayaran</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-700">Cash (Manual Konfirmasi)</span>
-                  <span className="font-semibold text-gray-900">
-                    Rp {(totalRevenue * 0.35).toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="bg-amber-500 h-2 rounded-full" style={{ width: "35%" }} />
-                </div>
+        {/* Payment Distribution */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Ringkasan Pembayaran</h3>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-700">Cash (Manual Konfirmasi)</span>
+                <span className="font-semibold text-gray-900">
+                  Rp {paymentDistribution.cash.toLocaleString("id-ID")}
+                </span>
               </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-700">QRIS (Xendit)</span>
-                  <span className="font-semibold text-gray-900">
-                    Rp {(totalRevenue * 0.40).toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="bg-violet-500 h-2 rounded-full" style={{ width: "40%" }} />
-                </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div 
+                  className="bg-amber-500 h-2 rounded-full" 
+                  style={{ width: `${totalPaymentRevenue ? (paymentDistribution.cash / totalPaymentRevenue) * 100 : 0}%` }}
+                />
               </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-700">Virtual Account (Xendit)</span>
-                  <span className="font-semibold text-gray-900">
-                    Rp {(totalRevenue * 0.25).toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: "25%" }} />
-                </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-700">QRIS (Xendit)</span>
+                <span className="font-semibold text-gray-900">
+                  Rp {paymentDistribution.qris.toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div 
+                  className="bg-violet-500 h-2 rounded-full" 
+                  style={{ width: `${totalPaymentRevenue ? (paymentDistribution.qris / totalPaymentRevenue) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-700">Transfer Bank (Xendit)</span>
+                <span className="font-semibold text-gray-900">
+                  Rp {paymentDistribution.transfer.toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div 
+                  className="bg-blue-500 h-2 rounded-full" 
+                  style={{ width: `${totalPaymentRevenue ? (paymentDistribution.transfer / totalPaymentRevenue) * 100 : 0}%` }}
+                />
               </div>
             </div>
           </div>
         </div>
         
         {/* Recent Orders Table */}
-        <RecentOrdersTable orders={mockOrders} />
+        <RecentOrdersTable orders={orders} />
         
         {/* Additional Stats */}
         <div className="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-6 text-white">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h3 className="text-xl font-bold mb-2">Ingin laporan lebih detail?</h3>
-              <p className="text-violet-100">Export data penjualan untuk analisis lebih lanjut</p>
+              <p className="text-violet-100">Data statistik diperbarui secara real-time</p>
             </div>
-            <button className="px-6 py-3 bg-white text-violet-600 rounded-xl font-semibold hover:bg-gray-100 transition-colors">
+            <button 
+              onClick={exportToExcel}
+              className="px-6 py-3 bg-white text-violet-600 rounded-xl font-semibold hover:bg-gray-100 transition-colors flex items-center gap-2"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
               Export Laporan Lengkap
             </button>
           </div>

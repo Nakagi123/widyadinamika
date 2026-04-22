@@ -127,14 +127,18 @@ function OrderRow({ order, onConfirm, onCancel, onDelete, isUpdating }) {
 
           {isPending && (
             <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => onConfirm(order._id)}
-                disabled={isUpdating}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isUpdating ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                {isCash ? "Konfirmasi Pembayaran Tunai" : "Konfirmasi Pesanan"}
-              </button>
+              {/* Only show confirm button for cash payments */}
+              {isCash && (
+                <button
+                  onClick={() => onConfirm(order._id)}
+                  disabled={isUpdating}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isUpdating ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                  Konfirmasi Pembayaran Tunai
+                </button>
+              )}
+              {/* Cancel button for ALL pending orders */}
               <button
                 onClick={() => onCancel(order._id)}
                 disabled={isUpdating}
@@ -146,7 +150,7 @@ function OrderRow({ order, onConfirm, onCancel, onDelete, isUpdating }) {
             </div>
           )}
 
-          {isCancelled && (
+          {isCancelled &&  (
             <button
               onClick={() => onDelete(order._id)}
               disabled={isUpdating}

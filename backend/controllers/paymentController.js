@@ -106,11 +106,24 @@ const kasirUpdateStatus = async (req, res, next) => {
     const order = await Order.findById(req.params.orderId);
     if (!order)
       return res.status(404).json({ message: "Order tidak ditemukan" });
-    if (order.paymentMethod !== "cash")
-      return res.status(400).json({ message: "Hanya order cash yang bisa dikonfirmasi kasir" });
+    
+    // Check if order is pending
     if (order.status !== "pending")
       return res.status(400).json({ message: `Order sudah berstatus ${order.status}` });
 
+    // Handle CANCELLATION - allowed for ALL payment methods
+    if (status === "cancelled") {
+      order.status = "cancelled";
+      await order.save();
+      return res.json({ message: "Order berhasil dibatalkan", order });
+    }
+    
+    // Handle PAID - only for cash payments
+    if (status === "paid" && order.paymentMethod !== "cash") {
+      return res.status(400).json({ message: "Hanya order cash yang bisa dikonfirmasi kasir" });
+    }
+
+    // Process paid status (only reaches here for cash orders)
     order.status = status;
 
     if (status === "paid") {
