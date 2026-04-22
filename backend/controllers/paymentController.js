@@ -38,14 +38,14 @@ const checkout = async (req, res, next) => {
       status: "pending",
     });
 
-   if (paymentMethod === "cash") {
-  await Cart.findOneAndDelete({ user: req.user.id }); 
-  return res.status(201).json({
-    message: "Pesanan dibuat. Tunjukkan ID pesanan ke kasir.",
-    orderId: order._id,
-    totalPrice,
-  });
-}
+    if (paymentMethod === "cash") {
+      await Cart.findOneAndDelete({ user: req.user.id });
+      return res.status(201).json({
+        message: "Pesanan dibuat. Tunjukkan ID pesanan ke kasir.",
+        orderId: order._id,
+        totalPrice,
+      });
+    }
 
     const xenditInvoice = await Invoice.createInvoice({
       data: {
@@ -78,10 +78,11 @@ const checkout = async (req, res, next) => {
 
 const kasirGetAllOrders = async (req, res, next) => {
   try {
-    const { status } = req.query;
+    const { status, paymentMethod } = req.query;
 
-    const filter = { paymentMethod: "cash" };
+    const filter = {};
     if (status) filter.status = status;
+    if (paymentMethod) filter.paymentMethod = paymentMethod;
 
     const orders = await Order.find(filter)
       .populate("user", "username")
@@ -127,17 +128,39 @@ const kasirUpdateStatus = async (req, res, next) => {
   }
 };
 
+const deleteOrder = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order tidak ditemukan" });
+    }
+    
+    if (order.status !== "cancelled") {
+      return res.status(400).json({ message: "Hanya pesanan yang dibatalkan yang dapat dihapus" });
+    }
+    
+    await Order.findByIdAndDelete(orderId);
+    res.json({ message: "Pesanan berhasil dihapus" });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const handleNotification = async (req, res, next) => {
   try {
     const callbackToken = req.headers["x-callback-token"];
-    if (callbackToken !== process.env.XENDIT_CALLBACK_TOKEN)
+    if (callbackToken !== process.env.XENDIT_CALLBACK_TOKEN) {
       return res.status(403).json({ message: "Token tidak valid" });
+    }
 
     const { external_id, status } = req.body;
 
     const order = await Order.findOne({ xenditExternalId: external_id });
-    if (!order)
+    if (!order) {
       return res.status(404).json({ message: "Order tidak ditemukan" });
+    }
 
     if (status === "PAID" || status === "SETTLED") {
       order.status = "paid";
@@ -168,10 +191,58 @@ const getMyOrders = async (req, res, next) => {
   }
 };
 
+const checkPaymentStatus = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order tidak ditemukan" });
+    }
+    
+    if (order.status === "paid") {
+      return res.json({ status: "paid", order });
+    }
+    
+    if (!order.xenditInvoiceId) {
+      return res.json({ status: order.status, order });
+    }
+    
+    try {
+      const xenditInvoice = await Invoice.getInvoice({
+        invoiceID: order.xenditInvoiceId
+      });
+      
+      if (xenditInvoice.status === "PAID" || xenditInvoice.status === "SETTLED") {
+        order.status = "paid";
+        
+        for (const item of order.items) {
+          await Product.findByIdAndUpdate(item.product, {
+            $inc: { stock: -item.quantity },
+          });
+        }
+        
+        await order.save();
+        return res.json({ status: "paid", order });
+      }
+      
+      return res.json({ status: order.status, order });
+      
+    } catch (xenditErr) {
+      return res.json({ status: order.status, order });
+    }
+    
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   checkout,
   handleNotification,
   getMyOrders,
   kasirGetAllOrders,
   kasirUpdateStatus,
+  deleteOrder,
+  checkPaymentStatus,
 };
