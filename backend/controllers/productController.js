@@ -1,3 +1,4 @@
+// backend/controllers/productController.js
 const Product = require("../models/Product");
 const cloudinary = require("../utils/cloudinary");
 const { uploadToCloudinary } = require("../middleware/upload");
@@ -24,10 +25,10 @@ const getProductById = async (req, res, next) => {
   }
 };
 
-// POST /api/products  (butuh token + gambar)
+// POST /api/products (butuh token + gambar)
 const createProduct = async (req, res, next) => {
   try {
-    const { name, description, price, stock } = req.body;
+    const { name, description, price, stock } = req.body; // Removed category
 
     let image = { url: "", publicId: "" };
 
@@ -51,14 +52,14 @@ const createProduct = async (req, res, next) => {
   }
 };
 
-// PUT /api/products/:id  (butuh token)
+// PUT /api/products/:id (butuh token)
 const updateProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product)
       return res.status(404).json({ message: "Produk tidak ditemukan" });
 
-    const { name, description, price, stock } = req.body;
+    const { name, description, price, stock } = req.body; // Removed category
 
     // Kalau ada gambar baru, hapus yang lama dari Cloudinary
     if (req.file) {
@@ -81,7 +82,7 @@ const updateProduct = async (req, res, next) => {
   }
 };
 
-// DELETE /api/products/:id  (butuh token)
+// DELETE /api/products/:id (butuh token)
 const deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);

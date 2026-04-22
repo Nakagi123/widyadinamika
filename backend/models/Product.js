@@ -1,3 +1,4 @@
+// backend/models/Product.js
 const mongoose = require("mongoose");
 
 const ProductSchema = new mongoose.Schema(
@@ -24,7 +25,7 @@ const ProductSchema = new mongoose.Schema(
     },
     image: {
       url: { type: String, default: "" },
-      publicId: { type: String, default: "" }, // untuk hapus dari Cloudinary
+      publicId: { type: String, default: "" },
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -2,89 +2,18 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { productService } from "../../lib/api";
 import { 
-  Plus, Edit2, Trash2, X, Check, Search, 
-  Package, ChevronLeft, ChevronRight, Save, 
-  Upload, Image as ImageIcon, Loader
+  Plus, Edit2, Trash2, X, Search, 
+  Package, Save, Upload, Image as ImageIcon, Loader
 } from "lucide-react";
 
-// Initial products data
-const initialProducts = [
-  {
-    id: 1,
-    name: "Seragam Putih",
-    price: 85000,
-    stock: 2,
-    category: "Seragam",
-    image: "https://via.placeholder.com/200x200?text=Seragam+Putih",
-    description: "Seragam putih untuk upacara dan kegiatan formal sekolah. Bahan katun nyaman dan adem."
-  },
-  {
-    id: 2,
-    name: "Buku Tulis",
-    price: 8000,
-    stock: 3,
-    category: "Alat Tulis",
-    image: "https://via.placeholder.com/200x200?text=Buku+Tulis",
-    description: "Buku tulis 38 lembar, kertas berkualitas tidak mudah sobek."
-  },
-  {
-    id: 3,
-    name: "Pensil 2B",
-    price: 3000,
-    stock: 4,
-    category: "Alat Tulis",
-    image: "https://via.placeholder.com/200x200?text=Pensil+2B",
-    description: "Pensil 2B untuk ujian dan menggambar, ujung tidak mudah patah."
-  },
-  {
-    id: 4,
-    name: "Nasi Goreng",
-    price: 10000,
-    stock: 50,
-    category: "Makanan",
-    image: "https://via.placeholder.com/200x200?text=Nasi+Goreng",
-    description: "Nasi goreng spesial dengan telur dan kerupuk."
-  },
-  {
-    id: 5,
-    name: "Mie Goreng",
-    price: 12000,
-    stock: 45,
-    category: "Makanan",
-    image: "https://via.placeholder.com/200x200?text=Mie+Goreng",
-    description: "Mie goreng dengan sayuran dan telur."
-  },
-  {
-    id: 6,
-    name: "Es Teh Manis",
-    price: 5000,
-    stock: 100,
-    category: "Minuman",
-    image: "https://via.placeholder.com/200x200?text=Es+Teh+Manis",
-    description: "Es teh manis segar dengan gula asli."
-  },
-  {
-    id: 7,
-    name: "Air Mineral",
-    price: 4000,
-    stock: 80,
-    category: "Minuman",
-    image: "https://via.placeholder.com/200x200?text=Air+Mineral",
-    description: "Air mineral kemasan 600ml."
-  },
-];
-
-const categories = ["Semua Kategori", "Seragam", "Alat Tulis", "Makanan", "Minuman"];
-
 function ProductCard({ product, onEdit, onDelete }) {
-  const navigate = useNavigate();
-
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-200">
       <div className="aspect-square bg-gray-100 overflow-hidden relative">
         <img 
-          src={product.image} 
+          src={product.image?.url || "https://via.placeholder.com/200x200?text=No+Image"} 
           alt={product.name}
           className="w-full h-full object-cover"
           onError={(e) => {
@@ -95,13 +24,10 @@ function ProductCard({ product, onEdit, onDelete }) {
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="font-bold text-gray-900 line-clamp-1">{product.name}</h3>
-          <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0">
-            {product.category}
-          </span>
         </div>
         
         <p className="text-sm text-gray-500 line-clamp-2 mb-3">
-          {product.description}
+          {product.description || "Tidak ada deskripsi"}
         </p>
         
         <div className="flex items-center justify-between mb-3">
@@ -126,7 +52,7 @@ function ProductCard({ product, onEdit, onDelete }) {
             Edit
           </button>
           <button
-            onClick={() => onDelete(product.id)}
+            onClick={() => onDelete(product._id)}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors text-sm font-semibold"
           >
             <Trash2 className="w-4 h-4" />
@@ -204,7 +130,7 @@ function ImageUploader({ currentImage, onImageUpload, isUploading }) {
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-600">Upload Gambar</p>
               <p className="text-xs text-gray-400 mt-1">Klik atau drag & drop</p>
-              <p className="text-xs text-gray-400">PNG, JPG, GIF (Max 5MB)</p>
+              <p className="text-xs text-gray-400">PNG, JPG (Max 5MB)</p>
             </div>
           </div>
         )}
@@ -227,10 +153,6 @@ function ImageUploader({ currentImage, onImageUpload, isUploading }) {
           Hapus Gambar
         </button>
       )}
-      
-      <p className="text-xs text-gray-400">
-        Catatan: Untuk sementara menggunakan preview lokal. Integrasi Cloudinary akan segera tersedia.
-      </p>
     </div>
   );
 }
@@ -240,47 +162,53 @@ function ProductForm({ product, onSave, onCancel }) {
     name: product?.name || "",
     price: product?.price || "",
     stock: product?.stock || "",
-    category: product?.category || categories[1],
-    image: product?.image || "",
     description: product?.description || "",
   });
-  const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(product?.image?.url || "");
 
-  const handleImageUpload = (previewUrl, file) => {
+  const handleImageUpload = (url, file) => {
     if (file) {
       setImageFile(file);
-      setFormData({ ...formData, image: previewUrl });
-      
-      setIsUploading(true);
-      setTimeout(() => {
-        setIsUploading(false);
-      }, 1000);
+      setPreviewUrl(url);
     } else {
       setImageFile(null);
-      setFormData({ ...formData, image: "" });
+      setPreviewUrl("");
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (isSubmitting) return;
+    
     if (!formData.name || !formData.price || !formData.stock) {
       alert("Mohon isi semua field yang diperlukan");
       return;
     }
     
-    const productData = {
-      ...formData,
-      price: Number(formData.price),
-      stock: Number(formData.stock),
-      id: product?.id,
-    };
+    setIsSubmitting(true);
     
-    if (!productData.image) {
-      productData.image = "https://via.placeholder.com/200x200?text=No+Image";
+    const submitData = new FormData();
+    submitData.append("name", formData.name);
+    submitData.append("price", Number(formData.price));
+    submitData.append("stock", Number(formData.stock));
+    submitData.append("description", formData.description);
+    
+    if (imageFile) {
+      submitData.append("image", imageFile);
     }
     
-    onSave(productData);
+    try {
+      await onSave(submitData, product?._id);
+      // Form will be closed by parent after successful save
+    } catch (err) {
+      console.error("Save failed:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -292,7 +220,8 @@ function ProductForm({ product, onSave, onCancel }) {
           </h2>
           <button
             onClick={onCancel}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            disabled={isSubmitting}
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
             <X className="w-5 h-5 text-gray-500" />
           </button>
@@ -303,9 +232,9 @@ function ProductForm({ product, onSave, onCancel }) {
             {/* Left Column - Image Upload */}
             <div>
               <ImageUploader 
-                currentImage={formData.image}
+                currentImage={previewUrl}
                 onImageUpload={handleImageUpload}
-                isUploading={isUploading}
+                isUploading={false}
               />
             </div>
             
@@ -322,6 +251,7 @@ function ProductForm({ product, onSave, onCancel }) {
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
                   placeholder="Contoh: Buku Tulis"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               
@@ -337,6 +267,7 @@ function ProductForm({ product, onSave, onCancel }) {
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-400"
                     placeholder="0"
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
                 
@@ -351,23 +282,9 @@ function ProductForm({ product, onSave, onCancel }) {
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-400"
                     placeholder="0"
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Kategori
-                </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
-                >
-                  {categories.filter(c => c !== "Semua Kategori").map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
               </div>
               
               <div>
@@ -380,6 +297,7 @@ function ProductForm({ product, onSave, onCancel }) {
                   rows="4"
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
                   placeholder="Deskripsi lengkap tentang produk..."
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -388,16 +306,26 @@ function ProductForm({ product, onSave, onCancel }) {
           <div className="flex gap-3 pt-6 mt-6 border-t border-gray-200">
             <button
               type="submit"
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-colors"
-              disabled={isUploading}
+              disabled={isSubmitting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="w-4 h-4" />
-              {product ? "Simpan Perubahan" : "Tambah Produk"}
+              {isSubmitting ? (
+                <>
+                  <Loader className="w-4 h-4 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  {product ? "Simpan Perubahan" : "Tambah Produk"}
+                </>
+              )}
             </button>
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors"
+              disabled={isSubmitting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               <X className="w-4 h-4" />
               Batal
@@ -410,20 +338,37 @@ function ProductForm({ product, onSave, onCancel }) {
 }
 
 function AdminProducts() {
-  const { isAuthenticated, isKasir } = useAuth(); // CHANGED: isLoggedIn → isAuthenticated, isAdmin → isKasir
+  const { isAuthenticated, isKasir } = useAuth();
   const navigate = useNavigate();
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("Semua Kategori");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
 
+  // Fetch products from API
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await productService.getAllProducts();
+      setProducts(response.data);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
+      setError(err.message || "Gagal memuat produk");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // CHANGED: Check if not authenticated or not kasir
     if (!isAuthenticated) {
       navigate("/auth");
     } else if (!isKasir) {
       navigate("/");
+    } else {
+      fetchProducts();
     }
   }, [isAuthenticated, isKasir, navigate]);
 
@@ -437,33 +382,47 @@ function AdminProducts() {
     setShowForm(true);
   };
 
-  const handleDeleteProduct = (id) => {
+  const handleDeleteProduct = async (id) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus produk ini?")) {
-      setProducts(products.filter(p => p.id !== id));
+      try {
+        await productService.deleteProduct(id);
+        await fetchProducts(); // Refresh list
+        alert("✅ Produk berhasil dihapus");
+      } catch (err) {
+        console.error("Failed to delete product:", err);
+        alert(err.response?.data?.message || "❌ Gagal menghapus produk");
+      }
     }
   };
 
-  const handleSaveProduct = (productData) => {
-    if (productData.id) {
-      setProducts(products.map(p => 
-        p.id === productData.id ? { ...productData } : p
-      ));
-    } else {
-      const newId = Math.max(...products.map(p => p.id), 0) + 1;
-      setProducts([...products, { ...productData, id: newId }]);
+  const handleSaveProduct = async (formData, productId) => {
+    try {
+      if (productId) {
+        // Update existing product
+        await productService.updateProduct(productId, formData);
+        alert("✅ Produk berhasil diupdate");
+      } else {
+        // Create new product
+        await productService.createProduct(formData);
+        alert("✅ Produk berhasil ditambahkan");
+      }
+      await fetchProducts(); // Refresh list
+      setShowForm(false); // Close the form
+      setEditingProduct(null); // Clear editing product
+    } catch (err) {
+      console.error("Failed to save product:", err);
+      const errorMsg = err.response?.data?.message || "❌ Gagal menyimpan produk";
+      alert(errorMsg);
+      throw err; // Re-throw to let form know it failed
     }
-    setShowForm(false);
-    setEditingProduct(null);
   };
 
   const filteredProducts = products.filter(product => {
     const matchSearch = product.name.toLowerCase().includes(search.toLowerCase()) ||
-                       product.description.toLowerCase().includes(search.toLowerCase());
-    const matchCategory = selectedCategory === "Semua Kategori" || product.category === selectedCategory;
-    return matchSearch && matchCategory;
+                       (product.description && product.description.toLowerCase().includes(search.toLowerCase()));
+    return matchSearch;
   });
 
-  // CHANGED: Check if not authenticated or not kasir
   if (!isAuthenticated || !isKasir) return null;
 
   return (
@@ -496,32 +455,44 @@ function AdminProducts() {
           </button>
         </div>
 
-        {/* Search and Filter */}
-        <div className="flex gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Cari produk berdasarkan nama atau deskripsi..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent bg-white"
-            />
-          </div>
-          
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
-          >
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Cari produk berdasarkan nama..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent bg-white"
+          />
         </div>
 
         {/* Products Grid */}
-        {filteredProducts.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="aspect-square bg-gray-200 animate-pulse" />
+                <div className="p-4 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-full" />
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-2/3" />
+                  <div className="h-6 bg-gray-200 rounded animate-pulse w-1/2 mt-2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-20">
+            <p className="text-red-500 mb-4">{error}</p>
+            <button
+              onClick={fetchProducts}
+              className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700"
+            >
+              Coba Lagi
+            </button>
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-3">
             <Package className="w-16 h-16 stroke-1" />
             <p className="font-semibold">Tidak ada produk ditemukan</p>
@@ -536,7 +507,7 @@ function AdminProducts() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
               <ProductCard
-                key={product.id}
+                key={product._id}
                 product={product}
                 onEdit={handleEditProduct}
                 onDelete={handleDeleteProduct}
