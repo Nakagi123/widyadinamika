@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 
 function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth(); // ✅ Changed from isLoggedIn to isAuthenticated
+  const { user, isAuthenticated, isKasir, logout } = useAuth(); // ADDED: isKasir
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -33,20 +33,24 @@ function Navbar() {
             <Link to="/products" className="text-gray-700 hover:text-violet-500 transition-colors duration-200 py-2">
               Store
             </Link>
-            <Link to="/cart" className="flex items-center gap-1 text-gray-700 hover:text-violet-500 transition-colors duration-200 py-2">
-              <ShoppingCart className="w-5 h-5" />
-              Cart
-            </Link>
+            
+            {/* Only show Cart for students, not for kasir */}
+            {!isKasir && (
+              <Link to="/cart" className="flex items-center gap-1 text-gray-700 hover:text-violet-500 transition-colors duration-200 py-2">
+                <ShoppingCart className="w-5 h-5" />
+                Cart
+              </Link>
+            )}
 
             {/* Auth section */}
-            {isAuthenticated ? (  // ✅ Changed from isLoggedIn to isAuthenticated
+            {isAuthenticated ? (
               <div className="flex items-center gap-3">
                 <Link 
                   className="flex items-center gap-1 text-gray-700 text-sm hover:text-violet-500"
-                  to={user?.role === 'kasir' ? "/admin" : "/user"}  // ✅ Role-based dashboard link
+                  to="/user"
                 >
                   <CircleUserRound className="w-5 h-5 text-violet-500" />
-                  {user?.username}  {/* ✅ Changed from user.name to user.username */}
+                  {user?.username}
                 </Link>
                 <button
                   onClick={handleLogout}
@@ -84,20 +88,24 @@ function Navbar() {
             <Link to="/products" className="text-gray-700 hover:text-violet-500 font-semibold transition-colors duration-200 py-2" onClick={() => setIsMenuOpen(false)}>
               Store
             </Link>
-            <Link to="/cart" className="flex items-center gap-1 text-gray-700 hover:text-violet-500 font-semibold transition-colors duration-200 py-2" onClick={() => setIsMenuOpen(false)}>
-              <ShoppingCart className="w-5 h-5" />
-              Cart
-            </Link>
             
-            {isAuthenticated ? (  // ✅ Changed from isLoggedIn to isAuthenticated
+            {/* Only show Cart for students, not for kasir */}
+            {!isKasir && (
+              <Link to="/cart" className="flex items-center gap-1 text-gray-700 hover:text-violet-500 font-semibold transition-colors duration-200 py-2" onClick={() => setIsMenuOpen(false)}>
+                <ShoppingCart className="w-5 h-5" />
+                Cart
+              </Link>
+            )}
+            
+            {isAuthenticated ? (
               <>
                 <Link 
-                  to={user?.role === 'kasir' ? "/admin" : "/user"}  // ✅ Role-based dashboard link
+                  to="/user"
                   className="flex items-center gap-1 text-gray-700 hover:text-violet-500 font-semibold transition-colors duration-200 py-2" 
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <CircleUserRound className="w-5 h-5 text-violet-500" />
-                  {user?.username}  {/* ✅ Changed from user.name to user.username */}
+                  {user?.username}
                 </Link>
                 <button
                   onClick={() => { handleLogout(); setIsMenuOpen(false); }}

@@ -1,10 +1,11 @@
 // AdminOrders.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { 
   Search, CheckCircle, XCircle, ChevronDown, ChevronUp, 
   Banknote, QrCode, Building2, Eye, ArrowLeft 
 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
 
 const initialOrders = [
   {
@@ -273,10 +274,22 @@ function OrderRow({ order, onConfirm, onCancel }) {
 function AdminOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated, isKasir } = useAuth(); // ADDED: auth check
   const [order, setOrder] = useState(() => {
     const found = initialOrders.find(o => o.id === id);
     return found || null;
   });
+
+  // ADDED: Redirect if not kasir
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/auth");
+    } else if (!isKasir) {
+      navigate("/");
+    }
+  }, [isAuthenticated, isKasir, navigate]);
+
+  if (!isAuthenticated || !isKasir) return null;
 
   if (!order) {
     return (
@@ -403,10 +416,21 @@ function AdminOrderDetail() {
 
 // Main Admin Orders Component
 function AdminOrders() {
+  const { isAuthenticated, isKasir } = useAuth(); // CHANGED: use correct auth properties
+  const navigate = useNavigate();
   const [orders, setOrders] = useState(initialOrders);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPayment, setFilterPayment] = useState("all");
+
+  // ADDED: Redirect if not kasir
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/auth");
+    } else if (!isKasir) {
+      navigate("/");
+    }
+  }, [isAuthenticated, isKasir, navigate]);
 
   const handleConfirm = (id) => {
     setOrders((prev) =>
@@ -439,12 +463,25 @@ function AdminOrders() {
 
   const cashPending = orders.filter((o) => o.paymentMethod === "cash" && o.status === "pending").length;
 
+  // ADDED: Check if not authenticated or not kasir
+  if (!isAuthenticated || !isKasir) return null;
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <div className="max-w-5xl mx-auto px-6 py-10 flex flex-col gap-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Link 
+                to="/admin" 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Dashboard
+              </Link>
+              <span className="text-gray-300">/</span>
+              <span className="text-gray-900 font-medium">Kelola Pesanan</span>
+            </div>
             <h1 className="text-3xl font-bold text-gray-900">Kelola Pesanan</h1>
             <p className="text-gray-400 mt-1 text-sm">Konfirmasi dan pantau semua pesanan masuk</p>
           </div>
@@ -501,7 +538,7 @@ function AdminOrders() {
             <option value="all">Semua Pembayaran</option>
             <option value="cash">Cash (Konfirmasi Manual)</option>
             <option value="qris">QRIS (Xendit)</option>
-            <option value="virtual_account">🏦 Virtual Account (Xendit)</option>
+            <option value="virtual_account">Virtual Account (Xendit)</option>
           </select>
         </div>
 

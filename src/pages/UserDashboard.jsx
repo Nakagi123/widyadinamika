@@ -1,3 +1,4 @@
+// src/pages/UserDashboard.jsx
 import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -16,16 +17,17 @@ const statusColor = {
 };
 
 function UserDashboard() {
-  const { user, isLoggedIn, isAdmin, logout } = useAuth();
+  const { user, isAuthenticated, isKasir, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       navigate("/auth");
     }
-  }, [isLoggedIn, navigate]);
+    // REMOVED the redirect for kasir - now kasir can also see this page
+  }, [isAuthenticated, navigate]);
 
-  if (!isLoggedIn) return null;
+  if (!isAuthenticated) return null;
 
   const handleLogout = () => {
     logout();
@@ -42,19 +44,20 @@ function UserDashboard() {
             <User className="w-7 h-7 text-violet-500" />
           </div>
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-900">{user.name}</h2>
-            <p className="text-sm text-gray-400">{user.email}</p>
-            <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${isAdmin ? "bg-violet-100 text-violet-600" : "bg-gray-100 text-gray-500"}`}>
-              {isAdmin ? "Admin" : "Student"}
+            <h2 className="text-xl font-bold text-gray-900">{user?.username}</h2>
+            <p className="text-sm text-gray-400">{user?.username}@widyadinamika.sch.id</p>
+            <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${isKasir ? "bg-violet-100 text-violet-600" : "bg-gray-100 text-gray-500"}`}>
+              {isKasir ? "Kasir" : "Student"}
             </span>
           </div>
         </div>
-
-        {/* Admin Button — only visible if admin */}
-        {isAdmin && (
+        
+        {/* Admin Button - visible for kasir only */}
+        {isKasir && (
           <Link
             to="/admin"
             className="flex items-center gap-3 bg-violet-600 text-white rounded-2xl p-5 hover:bg-violet-700 transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5"
+            onClick={() => console.log("Admin button clicked, navigating to /admin")}
           >
             <ShieldCheck className="w-6 h-6" />
             <div>

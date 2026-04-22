@@ -26,62 +26,62 @@ createRoot(document.getElementById('root')).render(
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public routes - anyone can access */}
+          {/* Public route */}
           <Route path="/auth" element={<Auth />} />
           
-          {/* Protected routes - require authentication */}
+          {/* Public order pages */}
+          <Route path="/orders/success" element={<OrderSuccess />} />
+          <Route path="/orders/pending" element={<OrderPending />} />
+          <Route path="/orders/qr" element={<OrderQR />} />
+          <Route path="/orders/va" element={<OrderVA />} />
+          
+          {/* Admin routes - MUST be outside Layout to avoid conflicts */}
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRoles={['kasir']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/products" element={
+            <ProtectedRoute allowedRoles={['kasir']}>
+              <AdminProducts />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/orders" element={
+            <ProtectedRoute allowedRoles={['kasir']}>
+              <AdminOrders />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/orders/:id" element={
+            <ProtectedRoute allowedRoles={['kasir']}>
+              <AdminOrderDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/statistics" element={
+            <ProtectedRoute allowedRoles={['kasir']}>
+              <AdminStatistics />
+            </ProtectedRoute>
+          } />
+          
+          {/* Protected routes with Layout */}
           <Route path="/" element={
             <ProtectedRoute>
               <Layout />
             </ProtectedRoute>
           }>
-            {/* Student & Kasir routes (both roles can access) */}
+            {/* Routes accessible by both student and kasir */}
             <Route index element={<Home />} />
             <Route path="/products" element={<Products />} />
-            <Route path="products/:id" element={<ProductDetail />} />
+            <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
             
-            {/* Student-only routes */}
+            {/* User Dashboard - accessible by both student AND kasir */}
             <Route path="/user" element={
-              <ProtectedRoute allowedRoles={['student']}>
+              <ProtectedRoute allowedRoles={['student', 'kasir']}>
                 <UserDashboard />
               </ProtectedRoute>
             } />
-            
-            {/* Kasir-only routes (admin dashboard) */}
-            <Route path="/admin" element={
-              <ProtectedRoute allowedRoles={['kasir']}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/products" element={
-              <ProtectedRoute allowedRoles={['kasir']}>
-                <AdminProducts />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/orders" element={
-              <ProtectedRoute allowedRoles={['kasir']}>
-                <AdminOrders />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/orders/:id" element={
-              <ProtectedRoute allowedRoles={['kasir']}>
-                <AdminOrderDetail />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/statistics" element={
-              <ProtectedRoute allowedRoles={['kasir']}>
-                <AdminStatistics />
-              </ProtectedRoute>
-            } />
           </Route>
-
-          {/* Public order pages (can be accessed without auth, but will show order info) */}
-          <Route path="/orders/success" element={<OrderSuccess />} />
-          <Route path="/orders/pending" element={<OrderPending />} />
-          <Route path="/orders/qr" element={<OrderQR />} />
-          <Route path="/orders/va" element={<OrderVA />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

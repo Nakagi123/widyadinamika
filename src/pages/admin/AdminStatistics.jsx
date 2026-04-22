@@ -207,7 +207,7 @@ function DateRangeFilter({ dateRange, setDateRange }) {
   ];
   
   return (
-    <div className="flex items-center gap-3">
+    <div className="relative">
       <button
         onClick={() => setShowCustom(!showCustom)}
         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
@@ -217,7 +217,7 @@ function DateRangeFilter({ dateRange, setDateRange }) {
       </button>
       
       {showCustom && (
-        <div className="absolute mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-10">
+        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-10">
           {presets.map(preset => (
             <button
               key={preset.label}
@@ -232,25 +232,23 @@ function DateRangeFilter({ dateRange, setDateRange }) {
           ))}
         </div>
       )}
-      
-      <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-        <Download className="w-4 h-4" />
-        Export
-      </button>
     </div>
   );
 }
 
 function AdminStatistics() {
-  const { isLoggedIn, isAdmin } = useAuth();
+  const { isAuthenticated, isKasir } = useAuth(); // CHANGED: use correct auth properties
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState({ label: "7 Hari Terakhir", days: 7 });
   
+  // ADDED: Redirect if not kasir
   useEffect(() => {
-    if (!isLoggedIn || !isAdmin) {
+    if (!isAuthenticated) {
+      navigate("/auth");
+    } else if (!isKasir) {
       navigate("/");
     }
-  }, [isLoggedIn, isAdmin, navigate]);
+  }, [isAuthenticated, isKasir, navigate]);
   
   // Calculate statistics
   const confirmedOrders = mockOrders.filter(o => o.status === "confirmed");
@@ -281,7 +279,8 @@ function AdminStatistics() {
   const revenueGrowth = 23.5;
   const ordersGrowth = 15.2;
   
-  if (!isLoggedIn || !isAdmin) return null;
+  // ADDED: Check if not authenticated or not kasir
+  if (!isAuthenticated || !isKasir) return null;
   
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -304,7 +303,13 @@ function AdminStatistics() {
             <p className="text-gray-400 mt-1 text-sm">Lihat laporan dan analisis penjualan</p>
           </div>
           
-          <DateRangeFilter dateRange={dateRange} setDateRange={setDateRange} />
+          <div className="flex items-center gap-3">
+            <DateRangeFilter dateRange={dateRange} setDateRange={setDateRange} />
+            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          </div>
         </div>
         
         {/* Stats Cards */}

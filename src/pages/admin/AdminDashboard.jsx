@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { Package, ShoppingBag, BadgeDollarSign, AlertTriangle, ChevronRight, BarChart2, ClipboardList } from "lucide-react";
+import { Package, ShoppingBag, BadgeDollarSign, AlertTriangle, ChevronRight, BarChart2, ClipboardList, Home } from "lucide-react";
 
 const stats = {
   totalProducts: 24,
@@ -29,25 +29,43 @@ function StatCard({ icon, label, value, color }) {
 }
 
 function AdminDashboard() {
-  const { isLoggedIn, isAdmin } = useAuth();
+  const { isAuthenticated, isKasir, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoggedIn || !isAdmin) {
+    console.log("AdminDashboard - isAuthenticated:", isAuthenticated);
+    console.log("AdminDashboard - isKasir:", isKasir);
+    console.log("AdminDashboard - user role:", user?.role);
+    
+    // Redirect if not authenticated or not kasir
+    if (!isAuthenticated) {
+      navigate("/auth");
+    } else if (!isKasir) {
       navigate("/");
     }
-  }, [isLoggedIn, isAdmin, navigate]);
+  }, [isAuthenticated, isKasir, navigate, user]);
 
-  if (!isLoggedIn || !isAdmin) return null;
+  if (!isAuthenticated || !isKasir) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <div className="max-w-5xl mx-auto px-6 py-10 flex flex-col gap-8">
 
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-400 mt-1">Selamat datang, kelola toko kamu di sini</p>
+        {/* Header with Back to Home Button */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-gray-400 mt-1">Selamat datang, {user?.username} | Role: Kasir</p>
+          </div>
+          
+          {/* Back to Home Button */}
+          <Link
+            to="/"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 hover:border-violet-200 hover:text-violet-600 transition-all duration-200"
+          >
+            <Home className="w-4 h-4" />
+            Kembali ke Beranda
+          </Link>
         </div>
 
         {/* Stat Cards */}

@@ -63,17 +63,24 @@ function CartItem({ item, onIncrease, onDecrease, onRemove }) {
 }
 
 function Cart() {
-  const { isLoggedIn } = useAuth();
+  const { isAuthenticated, isKasir } = useAuth(); // FIXED: isLoggedIn → isAuthenticated, added isKasir
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState(initialCart);
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    // Redirect kasir users away from cart
+    if (isKasir) {
+      navigate("/admin");
+      return;
+    }
+    // Redirect non-authenticated users to login
+    if (!isAuthenticated) {
       navigate("/auth");
     }
-  }, [isLoggedIn, navigate]);
+  }, [isAuthenticated, isKasir, navigate]);
 
-  if (!isLoggedIn) return null;
+  // Don't render anything while redirecting
+  if (!isAuthenticated || isKasir) return null;
 
   const handleIncrease = (id) => {
     setCartItems((prev) =>

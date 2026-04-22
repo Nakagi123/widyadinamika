@@ -144,7 +144,6 @@ function ImageUploader({ currentImage, onImageUpload, isUploading }) {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Create a local preview
       const previewUrl = URL.createObjectURL(file);
       onImageUpload(previewUrl, file);
     }
@@ -250,20 +249,14 @@ function ProductForm({ product, onSave, onCancel }) {
 
   const handleImageUpload = (previewUrl, file) => {
     if (file) {
-      // For now, just set the preview URL
-      // When Cloudinary is integrated, you'll upload here
       setImageFile(file);
       setFormData({ ...formData, image: previewUrl });
       
-      // Simulate upload to Cloudinary (replace with actual upload later)
       setIsUploading(true);
       setTimeout(() => {
         setIsUploading(false);
-        // In production, you would upload to Cloudinary here
-        // and set the returned URL to formData.image
       }, 1000);
     } else {
-      // Remove image
       setImageFile(null);
       setFormData({ ...formData, image: "" });
     }
@@ -276,7 +269,6 @@ function ProductForm({ product, onSave, onCancel }) {
       return;
     }
     
-    // Prepare product data
     const productData = {
       ...formData,
       price: Number(formData.price),
@@ -284,8 +276,6 @@ function ProductForm({ product, onSave, onCancel }) {
       id: product?.id,
     };
     
-    // If there's an image file and Cloudinary is integrated, you would upload it here
-    // For now, save with the preview URL or placeholder
     if (!productData.image) {
       productData.image = "https://via.placeholder.com/200x200?text=No+Image";
     }
@@ -420,7 +410,7 @@ function ProductForm({ product, onSave, onCancel }) {
 }
 
 function AdminProducts() {
-  const { isLoggedIn, isAdmin } = useAuth();
+  const { isAuthenticated, isKasir } = useAuth(); // CHANGED: isLoggedIn → isAuthenticated, isAdmin → isKasir
   const navigate = useNavigate();
   const [products, setProducts] = useState(initialProducts);
   const [search, setSearch] = useState("");
@@ -429,10 +419,13 @@ function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState(null);
 
   useEffect(() => {
-    if (!isLoggedIn || !isAdmin) {
+    // CHANGED: Check if not authenticated or not kasir
+    if (!isAuthenticated) {
+      navigate("/auth");
+    } else if (!isKasir) {
       navigate("/");
     }
-  }, [isLoggedIn, isAdmin, navigate]);
+  }, [isAuthenticated, isKasir, navigate]);
 
   const handleAddProduct = () => {
     setEditingProduct(null);
@@ -452,12 +445,10 @@ function AdminProducts() {
 
   const handleSaveProduct = (productData) => {
     if (productData.id) {
-      // Edit existing product
       setProducts(products.map(p => 
         p.id === productData.id ? { ...productData } : p
       ));
     } else {
-      // Add new product
       const newId = Math.max(...products.map(p => p.id), 0) + 1;
       setProducts([...products, { ...productData, id: newId }]);
     }
@@ -472,7 +463,8 @@ function AdminProducts() {
     return matchSearch && matchCategory;
   });
 
-  if (!isLoggedIn || !isAdmin) return null;
+  // CHANGED: Check if not authenticated or not kasir
+  if (!isAuthenticated || !isKasir) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">

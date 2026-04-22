@@ -1,4 +1,4 @@
-// src/pages/Auth.jsx
+// src/pages/Auth.jsx - Update the login and register functions
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
@@ -16,10 +16,11 @@ function Auth() {
     // Redirect if already logged in
     useEffect(() => {
         if (isAuthenticated && user) {
+            console.log("User authenticated:", user);
             if (user.role === 'kasir') {
                 navigate('/admin', { replace: true });
             } else {
-                navigate('/', { replace: true });
+                navigate('/', { replace: true }); // Student goes to home page
             }
         }
     }, [isAuthenticated, user, navigate]);
@@ -53,7 +54,7 @@ function Auth() {
         if (!result.success) {
             setError(result.error);
         }
-        // Redirect will happen automatically via useEffect
+        // Redirect happens automatically via useEffect
     };
 
     const handleRegisterSubmit = async () => {
@@ -77,7 +78,7 @@ function Auth() {
         if (!result.success) {
             setError(result.error);
         }
-        // Redirect will happen automatically via useEffect after login
+        // Redirect happens automatically via useEffect after login
     };
 
     const handleKeyPress = (e) => {
@@ -93,7 +94,6 @@ function Auth() {
     return (
         <div className="min-h-screen bg-gray-50 font-sans flex items-center justify-center px-4">
             <div className="w-full max-w-md">
-
                 {/* Logo */}
                 <div className="flex flex-col items-center gap-2 mb-8">
                     <div className="flex items-center gap-2">
@@ -105,7 +105,6 @@ function Auth() {
 
                 {/* Card */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-
                     {/* Toggle */}
                     <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
                         <button
@@ -200,7 +199,6 @@ function Auth() {
                                 </button>
                             </p>
                         </div>
-
                     ) : (
                         /* Register Form */
                         <div className="flex flex-col gap-4">
@@ -266,7 +264,6 @@ function Auth() {
                             </p>
                         </div>
                     )}
-
                 </div>
             </div>
         </div>
