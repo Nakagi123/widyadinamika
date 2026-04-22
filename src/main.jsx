@@ -2,8 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { ProtectedRoute } from './components/ProtectedRoute'
 import './index.css'
-import Layout from './components/layout.jsx'
+import Layout from './components/Layout.jsx'
 import Home from './pages/Home.jsx'
 import Products from "./pages/Products.jsx"
 import Cart from "./pages/Cart.jsx"
@@ -25,21 +26,58 @@ createRoot(document.getElementById('root')).render(
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Layout />}> 
+          {/* Public routes - anyone can access */}
+          <Route path="/auth" element={<Auth />} />
+          
+          {/* Protected routes - require authentication */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
+            {/* Student & Kasir routes (both roles can access) */}
             <Route index element={<Home />} />
             <Route path="/products" element={<Products />} />
             <Route path="products/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
-            <Route path="/user" element={<UserDashboard />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/products" element={<AdminProducts />} />
-            <Route path="/admin/orders" element={<AdminOrders />} />
-            <Route path="/admin/orders/:id" element={<AdminOrderDetail />} />
-            <Route path="/admin/statistics" element={<AdminStatistics />} />
             <Route path="/checkout" element={<Checkout />} />
+            
+            {/* Student-only routes */}
+            <Route path="/user" element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <UserDashboard />
+              </ProtectedRoute>
+            } />
+            
+            {/* Kasir-only routes (admin dashboard) */}
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['kasir']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/products" element={
+              <ProtectedRoute allowedRoles={['kasir']}>
+                <AdminProducts />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/orders" element={
+              <ProtectedRoute allowedRoles={['kasir']}>
+                <AdminOrders />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/orders/:id" element={
+              <ProtectedRoute allowedRoles={['kasir']}>
+                <AdminOrderDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/statistics" element={
+              <ProtectedRoute allowedRoles={['kasir']}>
+                <AdminStatistics />
+              </ProtectedRoute>
+            } />
           </Route>
 
-          <Route path="/auth" element={<Auth />} />
+          {/* Public order pages (can be accessed without auth, but will show order info) */}
           <Route path="/orders/success" element={<OrderSuccess />} />
           <Route path="/orders/pending" element={<OrderPending />} />
           <Route path="/orders/qr" element={<OrderQR />} />

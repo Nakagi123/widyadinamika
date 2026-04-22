@@ -1,17 +1,33 @@
-// src/components/Layout.jsx
-import Navbar from "./Navbar";
-import Footer from "./Footer";
-import { Outlet } from "react-router-dom";
+// src/components/layout.jsx
+import { Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import Navbar from './Navbar';
 
 function Layout() {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1">
-        <Outlet />
-      </main>
-    </div>
-  );
+    const { user, logout, isAuthenticated, isKasir } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/auth');
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50">
+            {/* Pass auth state to your navbar */}
+            <Navbar 
+                user={user}
+                isAuthenticated={isAuthenticated}
+                isKasir={isKasir}
+                onLogout={handleLogout}
+            />
+            
+            {/* Main content */}
+            <main>
+                <Outlet />
+            </main>
+        </div>
+    );
 }
 
 export default Layout;
