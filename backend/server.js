@@ -8,7 +8,11 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "https://widyadinamika.vercel.app",
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Routes
